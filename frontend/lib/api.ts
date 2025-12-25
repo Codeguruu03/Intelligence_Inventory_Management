@@ -27,7 +27,9 @@ export interface RefillDecision {
 
 export interface TrendData {
     _id: string;
+    productId: string;
     totalSold: number;
+    avgDailySales: number;
 }
 
 // Fetch all products

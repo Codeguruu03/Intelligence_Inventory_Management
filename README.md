@@ -1,36 +1,50 @@
 # 📦 Inventory Intelligence
 
 > **Decision-First Inventory Management System**  
-> An explainable AI-powered system that tells you *what to do*, not just *what the data says*.
+> An AI-powered system that tells you *what to do*, not just *what the data says*.
 
-![Dashboard](frontend/public/screenshot.png)
+![Dashboard Screenshot](frontend/public/screenshot.png)
 
 ---
 
 ## 🎯 Overview
 
-Inventory Intelligence is a modern inventory management system designed for **Indian material and construction businesses**. Unlike traditional inventory systems that overwhelm users with data, this system focuses on **actionable decisions**:
+Inventory Intelligence is a modern inventory management system designed for **Indian material and construction businesses**. Unlike traditional systems that overwhelm users with data, this focuses on **actionable decisions**:
 
-- **🔴 REFILL NOW** — Stock is critically low, order immediately
-- **🟢 HOLD** — Stock levels are healthy, no action needed  
-- **🟡 STOP REORDER** — Low demand, avoid overstocking
-
-### The Mental Model
-
-> *"An internal tool that a warehouse manager checks every morning to decide what to order."*
+| Decision | Meaning |
+|----------|---------|
+| 🔴 **REFILL NOW** | Stock critically low, order immediately |
+| 🟢 **HOLD** | Stock levels healthy, no action needed |
+| 🟡 **STOP REORDER** | Low demand, avoid overstocking |
 
 ---
 
 ## ✨ Features
 
+### Core Functionality
 | Feature | Description |
 |---------|-------------|
-| **Decision Engine** | AI-powered refill recommendations with explainable reasons |
-| **Visual Dashboard** | Bar charts & donut charts for inventory health |
-| **Real-time KPIs** | Inventory value, capital at risk, stock status |
-| **Product Management** | Add products, update stock quantities |
-| **Trend Analysis** | 7-day demand trends for forecasting |
-| **Semantic Colors** | Red/Green/Yellow for instant understanding |
+| 🔍 **Search & Filter** | Search by name, filter by category/decision |
+| ➕ **Add Product** | Add new inventory items |
+| 📝 **Update Stock** | Modify stock quantities |
+| 🗑️ **Delete Product** | Remove items from inventory |
+| 🛒 **Record Sale** | Log sales to update stock |
+| 📥 **Export CSV** | Download inventory report |
+| 🌙 **Dark Mode** | Toggle light/dark themes |
+
+### Analytics & Insights
+| Feature | Description |
+|---------|-------------|
+| 📊 **Health Bar Chart** | Visual breakdown of refill/healthy/stop items |
+| 🏷️ **Category Breakdown** | Distribution across product categories |
+| 🍩 **Donut Chart** | Inventory status distribution |
+| 📈 **Turnover Rate** | Monthly inventory turnover calculation |
+
+### Alerts & Notifications
+| Feature | Description |
+|---------|-------------|
+| ⚠️ **Low Stock Alert** | Red banner when items need refill |
+| 📦 **Reorder Suggestions** | AI-calculated order quantities (14-day supply) |
 
 ---
 
@@ -39,14 +53,14 @@ Inventory Intelligence is a modern inventory management system designed for **In
 ### Backend
 - **Runtime**: Node.js
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
+- **Database**: MongoDB with Mongoose
 - **Architecture**: MVC with Service Layer
 
 ### Frontend
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Styling**: TailwindCSS + Custom CSS
-- **Charts**: Pure CSS (no external libraries)
+- **Charts**: Pure CSS (zero dependencies)
 
 ---
 
@@ -56,24 +70,20 @@ Inventory Intelligence is a modern inventory management system designed for **In
 inventory-intelligence/
 ├── backend/
 │   ├── src/
-│   │   ├── config/          # Database configuration
+│   │   ├── config/          # Database config
 │   │   ├── controllers/     # Request handlers
 │   │   ├── models/          # Mongoose schemas
-│   │   ├── routes/          # API route definitions
+│   │   ├── routes/          # API routes
 │   │   ├── services/        # Business logic
-│   │   ├── scripts/         # Seed data script
-│   │   ├── app.js           # Express app setup
-│   │   └── server.js        # Entry point
-│   ├── .env.example
+│   │   └── scripts/         # Seed data (65 products)
 │   └── package.json
 │
 ├── frontend/
 │   ├── app/
 │   │   ├── globals.css      # Design system
-│   │   ├── layout.tsx       # Root layout
-│   │   └── page.tsx         # Dashboard page
+│   │   └── page.tsx         # Dashboard (all features)
 │   ├── lib/
-│   │   └── api.ts           # API client functions
+│   │   └── api.ts           # API client
 │   └── package.json
 │
 └── README.md
@@ -87,106 +97,91 @@ inventory-intelligence/
 - Node.js 18+
 - MongoDB (local or Atlas)
 
-### 1. Clone the Repository
+### 1. Clone & Setup Backend
 ```bash
 git clone <repository-url>
-cd inventory-intelligence
-```
-
-### 2. Setup Backend
-```bash
-cd backend
+cd inventory-intelligence/backend
 npm install
 
 # Create .env file
-cp .env.example .env
-# Edit .env with your MongoDB URI
+echo "PORT=5000" > .env
+echo "MONGO_URI=mongodb://localhost:27017/inventory_db" >> .env
 
-# Seed sample data
+# Seed 65 sample products
 npm run seed
 
-# Start development server
+# Start server
 npm run dev
 ```
 
-### 3. Setup Frontend
+### 2. Setup Frontend
 ```bash
-cd frontend
+cd ../frontend
 npm install
-
-# Start development server
 npm run dev
 ```
 
-### 4. Access the Dashboard
-Open **http://localhost:3000** in your browser.
+### 3. Open Dashboard
+Navigate to **http://localhost:3000**
 
 ---
 
 ## 🔌 API Endpoints
 
-### Products
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/inventory` | Get all products |
 | `POST` | `/api/inventory` | Add new product |
-| `PATCH` | `/api/inventory/:id/stock` | Update stock quantity |
+| `PATCH` | `/api/inventory/:id/stock` | Update stock |
 | `DELETE` | `/api/inventory/:id` | Delete product |
-
-### Decisions
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/refill` | Get refill recommendations |
-
-### Analytics
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/analytics/trends` | Get 7-day demand trends |
+| `GET` | `/api/refill` | Get refill decisions |
+| `GET` | `/api/analytics/trends` | Get demand trends |
 
 ---
 
-## 📊 Decision Logic
+## 📊 Decision Engine Logic
 
-The refill decision engine uses the following rules:
-
-```
-IF stockQuantity < minStockLevel * 0.3 AND avgDailySales > 0
+```javascript
+IF stock < minStock * 0.3 AND avgDailySales > 0
   → REFILL_NOW (Critical: Stock will run out soon)
 
-ELSE IF stockQuantity < minStockLevel
-  → REFILL_NOW (Stock below minimum threshold)
+ELSE IF stock < minStock
+  → REFILL_NOW (Below minimum threshold)
 
-ELSE IF avgDailySales === 0 AND stockQuantity > minStockLevel * 2
+ELSE IF avgDailySales === 0 AND stock > minStock * 2
   → STOP_REORDER (No demand, excess stock)
 
 ELSE
-  → HOLD (Stock levels are healthy)
+  → HOLD (Stock levels healthy)
 ```
 
 ---
 
-## 🎨 Design Decisions
+## � Sample Data
 
-1. **Decision-First UI**: Decisions are the most prominent visual element
-2. **Semantic Colors**: Red = urgent, Green = healthy, Yellow = caution
-3. **No Sidebar**: Clean, focused single-page layout
-4. **Charts**: Pure CSS for zero dependencies
-5. **Responsive**: Works on desktop and mobile
+The seed script creates **65 products** across **9 categories**:
+
+| Category | Products |
+|----------|----------|
+| Cement | 8 |
+| Steel | 10 |
+| Bricks | 8 |
+| Aggregates | 6 |
+| Plumbing | 8 |
+| Tiles | 8 |
+| Chemicals | 6 |
+| Electrical | 6 |
+| Paint | 5 |
 
 ---
 
-## 🌱 Sample Data
+## 🎨 Design Highlights
 
-The seed script creates:
-- **8 Products**: Cement, Steel, Sand, Bricks, etc.
-- **26 Sales Records**: Realistic transaction history
-- **Various Stock Levels**: To demonstrate all decision types
-
-Run seeding:
-```bash
-cd backend
-npm run seed
-```
+- **Decision-First**: Actions are the most prominent element
+- **Semantic Colors**: Red/Green/Yellow for instant understanding
+- **Dark Mode**: Easy on the eyes for extended use
+- **No Sidebar**: Clean, focused single-page layout
+- **Pure CSS Charts**: Zero external chart library dependencies
 
 ---
 
@@ -205,24 +200,12 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 
 ---
 
-## 🚧 Future Improvements
-
-- [ ] Authentication & user roles
-- [ ] Multi-warehouse support
-- [ ] Purchase order generation
-- [ ] Email/SMS alerts for low stock
-- [ ] Historical analytics dashboard
-- [ ] Bulk import/export CSV
-- [ ] Mobile app (React Native)
-
----
-
 ## 👨‍💻 Author
 
-Built for **SDE Internship Assignment** — Demonstrating full-stack development with focus on practical business solutions.
+Built for **SDE Internship Assignment** — Demonstrating full-stack development with focus on practical business solutions and modern UI/UX.
 
 ---
 
 ## 📄 License
 
-MIT License - feel free to use for learning and projects.
+MIT License
