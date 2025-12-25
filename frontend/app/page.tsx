@@ -156,53 +156,75 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* BOTTOM GRID */}
+        {/* BOTTOM GRID - Charts */}
         <div className="grid-bottom">
-          {/* Left: Stats row */}
+          {/* Left: Bar Chart - Inventory Status */}
           <div className="card animate">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div>
-                <div className="big-number red">{refillNow.length}</div>
-                <div className="number-label">Products to Refill</div>
-                <div className="card-subtitle mt-4">Need immediate action</div>
+                <div className="card-title">Inventory Health Overview</div>
+                <div className="card-subtitle">Stock status by category</div>
               </div>
-              <div>
-                <div className="big-number green">{holdItems.length}</div>
-                <div className="number-label">Healthy Stock</div>
-                <div className="card-subtitle mt-4">Optimal levels</div>
+            </div>
+
+            {/* Bar Chart */}
+            <div className="bar-chart">
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div className="bar-chart-bar red" style={{ height: `${Math.max(20, refillNow.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
+                <div className="bar-chart-label">Refill<br />{refillNow.length}</div>
               </div>
-              <div>
-                <div className="big-number yellow">{stopReorder.length}</div>
-                <div className="number-label">Stop Reordering</div>
-                <div className="card-subtitle mt-4">Low demand</div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div className="bar-chart-bar green" style={{ height: `${Math.max(20, holdItems.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
+                <div className="bar-chart-label">Healthy<br />{holdItems.length}</div>
               </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div className="bar-chart-bar yellow" style={{ height: `${Math.max(20, stopReorder.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
+                <div className="bar-chart-label">Stop<br />{stopReorder.length}</div>
+              </div>
+            </div>
+
+            <div className="chart-legend">
+              <div className="legend-item"><div className="legend-dot red"></div> Needs Refill</div>
+              <div className="legend-item"><div className="legend-dot green"></div> Healthy</div>
+              <div className="legend-item"><div className="legend-dot yellow"></div> Stop Reorder</div>
             </div>
           </div>
 
-          {/* Right: Quick actions */}
-          <div className="grid-bottom-right">
-            <div className="card card-sm animate">
-              <div className="card-title">Refill Recommendations</div>
-              <div style={{ marginTop: '12px' }}>
-                {refillNow.slice(0, 2).map(item => (
-                  <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#e74c3c' }}></div>
-                    <span className="text-sm">{item.name}</span>
-                  </div>
-                ))}
-                {refillNow.length === 0 && <p className="text-muted text-sm">No refills needed</p>}
+          {/* Right: Donut Chart */}
+          <div className="card card-sm animate">
+            <div className="card-title" style={{ marginBottom: '20px' }}>Inventory Distribution</div>
+
+            {/* Donut Chart using conic-gradient */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
+              <div
+                className="donut-chart"
+                style={{
+                  background: `conic-gradient(
+                    #e74c3c 0deg ${refillNow.length / refillDecisions.length * 360 || 0}deg,
+                    #27ae60 ${refillNow.length / refillDecisions.length * 360 || 0}deg ${(refillNow.length + holdItems.length) / refillDecisions.length * 360 || 0}deg,
+                    #f1c40f ${(refillNow.length + holdItems.length) / refillDecisions.length * 360 || 0}deg 360deg
+                  )`
+                }}
+              >
+                <div className="donut-center">
+                  <div className="donut-value">{refillDecisions.length}</div>
+                  <div className="donut-label">Total</div>
+                </div>
               </div>
-            </div>
-            <div className="card card-sm animate">
-              <div className="card-title">At-Risk Inventory</div>
-              <div style={{ marginTop: '12px' }}>
-                {stopReorder.slice(0, 2).map(item => (
-                  <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f1c40f' }}></div>
-                    <span className="text-sm">{item.name}</span>
-                  </div>
-                ))}
-                {stopReorder.length === 0 && <p className="text-muted text-sm">No at-risk items</p>}
+
+              <div>
+                <div className="legend-item" style={{ marginBottom: '8px' }}>
+                  <div className="legend-dot red"></div>
+                  <span>Refill ({refillNow.length})</span>
+                </div>
+                <div className="legend-item" style={{ marginBottom: '8px' }}>
+                  <div className="legend-dot green"></div>
+                  <span>Healthy ({holdItems.length})</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-dot yellow"></div>
+                  <span>Stop ({stopReorder.length})</span>
+                </div>
               </div>
             </div>
           </div>
