@@ -10,89 +10,13 @@ import {
   TrendData
 } from '@/lib/api';
 
-// Stats Card Component
-function StatsCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  trend
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: string;
-  trend?: 'up' | 'down' | 'neutral';
-}) {
-  return (
-    <div className="card animate-fade-in">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{title}</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: 'var(--card-foreground)' }}>{value}</p>
-          {subtitle && (
-            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
-          )}
-        </div>
-        <span className="text-2xl">{icon}</span>
-      </div>
-    </div>
-  );
-}
-
-// Decision Badge Component
-function DecisionBadge({ decision }: { decision: 'REFILL_NOW' | 'HOLD' | 'STOP_REORDER' }) {
-  const config = {
-    REFILL_NOW: { class: 'badge-danger', label: '🔴 Refill Now' },
-    HOLD: { class: 'badge-success', label: '🟢 Hold' },
-    STOP_REORDER: { class: 'badge-warning', label: '🟡 Stop Reorder' },
-  };
-
-  return (
-    <span className={`badge ${config[decision].class}`}>
-      {config[decision].label}
-    </span>
-  );
-}
-
-// Stock Level Bar
-function StockLevelBar({ current, minimum }: { current: number; minimum: number }) {
-  const percentage = Math.min(100, (current / minimum) * 100);
-  const color = percentage < 50 ? 'var(--danger)' : percentage < 100 ? 'var(--warning)' : 'var(--success)';
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="progress-bar flex-1">
-        <div
-          className="progress-fill"
-          style={{ width: `${percentage}%`, background: color }}
-        />
-      </div>
-      <span className="text-sm font-medium" style={{ color, minWidth: '40px' }}>
-        {current}/{minimum}
-      </span>
-    </div>
-  );
-}
-
-// Loading Skeleton
-function TableSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="skeleton h-14 w-full" />
-      ))}
-    </div>
-  );
-}
-
-// Main Dashboard Component
 export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [refillDecisions, setRefillDecisions] = useState<RefillDecision[]>([]);
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<string>('');
 
   useEffect(() => {
     async function loadData() {
@@ -108,7 +32,7 @@ export default function Dashboard() {
         setTrends(trendsData);
         setError(null);
       } catch (err) {
-        setError('Failed to load data. Make sure the backend is running on port 5000.');
+        setError('Unable to connect to server');
         console.error(err);
       } finally {
         setLoading(false);
@@ -117,317 +41,301 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  // Calculate stats
-  const totalProducts = products.length;
-  const lowStockCount = refillDecisions.filter(d => d.decision.decision === 'REFILL_NOW').length;
-  const healthyCount = refillDecisions.filter(d => d.decision.decision === 'HOLD').length;
-  const deadStockCount = refillDecisions.filter(d => d.decision.decision === 'STOP_REORDER').length;
+  useEffect(() => {
+    setCurrentTime(new Date().toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short'
+    }));
+  }, [loading]);
+
+  // Categorize decisions
+  const refillNow = refillDecisions.filter(d => d.decision.decision === 'REFILL_NOW');
+  const holdItems = refillDecisions.filter(d => d.decision.decision === 'HOLD');
+  const stopReorder = refillDecisions.filter(d => d.decision.decision === 'STOP_REORDER');
+
+  // Calculate values
   const totalInventoryValue = products.reduce((sum, p) => sum + (p.stockQuantity * p.costPrice), 0);
+  const capitalAtRisk = stopReorder.reduce((sum, item) => {
+    const product = products.find(p => p._id === item.productId);
+    return sum + (product ? product.stockQuantity * product.costPrice : 0);
+  }, 0);
+
+  // Get stock level class
+  const getStockLevel = (current: number, min: number) => {
+    const pct = (current / min) * 100;
+    if (pct < 50) return 'low';
+    if (pct < 100) return 'medium';
+    return 'healthy';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted">Loading inventory data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       {/* Header */}
-      <header className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <header style={{
+        borderBottom: '1px solid var(--glass-border)',
+        background: 'var(--background)'
+      }}>
+        <div className="max-w-5xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--card-foreground)' }}>
-                📦 Inventory Intelligence
+              <h1 style={{
+                fontSize: 'var(--text-xl)',
+                fontWeight: 600,
+                color: 'var(--foreground)',
+                letterSpacing: '-0.02em'
+              }}>
+                Inventory Intelligence
               </h1>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Decision Support System for Material Businesses
+              <p className="text-muted" style={{ fontSize: 'var(--text-sm)', marginTop: '2px' }}>
+                {currentTime}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Last updated: {new Date().toLocaleTimeString('en-IN')}
-              </span>
-              <button
-                className="btn btn-primary"
-                onClick={() => window.location.reload()}
-              >
-                ↻ Refresh
-              </button>
-            </div>
+            <button className="btn btn-ghost" onClick={() => window.location.reload()}>
+              Refresh
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Error State */}
+      <main className="max-w-5xl mx-auto px-8 py-10">
+
+        {/* Error */}
         {error && (
-          <div className="card mb-6" style={{ borderColor: 'var(--danger)', background: 'rgba(239, 68, 68, 0.1)' }}>
-            <p style={{ color: 'var(--danger)' }}>⚠️ {error}</p>
+          <div className="glass-card animate-in" style={{
+            marginBottom: 'var(--space-xl)',
+            borderColor: 'var(--danger-border)',
+            background: 'var(--danger-subtle)'
+          }}>
+            <p className="text-danger">{error}</p>
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            title="Total Products"
-            value={totalProducts}
-            icon="📊"
-            subtitle="Active SKUs"
-          />
-          <StatsCard
-            title="Low Stock Alerts"
-            value={lowStockCount}
-            icon="🔴"
-            subtitle="Need immediate refill"
-          />
-          <StatsCard
-            title="Healthy Stock"
-            value={healthyCount}
-            icon="🟢"
-            subtitle="Stock levels OK"
-          />
-          <StatsCard
-            title="Inventory Value"
-            value={`₹${totalInventoryValue.toLocaleString('en-IN')}`}
-            icon="💰"
-            subtitle="At cost price"
-          />
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Refill Decisions Panel */}
-          <div className="lg:col-span-2">
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold" style={{ color: 'var(--card-foreground)' }}>
-                  🎯 Refill Decisions
-                </h2>
-                <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  {refillDecisions.length} products analyzed
-                </span>
-              </div>
-
-              {loading ? (
-                <TableSkeleton />
-              ) : refillDecisions.length === 0 ? (
-                <div className="text-center py-12" style={{ color: 'var(--muted-foreground)' }}>
-                  <p className="text-4xl mb-2">📭</p>
-                  <p>No products found. Add products to see refill decisions.</p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Stock Level</th>
-                        <th>Decision</th>
-                        <th>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {refillDecisions.map((item, index) => {
-                        const product = products.find(p => p._id === item.productId);
-                        return (
-                          <tr key={item.productId} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
-                            <td>
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                {product && (
-                                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                    SKU: {product.sku}
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ minWidth: '180px' }}>
-                              {product && (
-                                <StockLevelBar
-                                  current={product.stockQuantity}
-                                  minimum={product.minStockLevel}
-                                />
-                              )}
-                            </td>
-                            <td>
-                              <DecisionBadge decision={item.decision.decision} />
-                            </td>
-                            <td>
-                              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                {item.decision.reason}
-                              </p>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+        {/* ════════════════════════════════════════════════════════════
+            TODAY'S ACTIONS
+            ════════════════════════════════════════════════════════════ */}
+        <section className="animate-in" style={{ marginBottom: 'var(--space-2xl)' }}>
+          <div className="section-header">
+            <h2>Today's Actions</h2>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--card-foreground)' }}>
-                ⚡ Quick Actions
-              </h2>
-              <div className="space-y-3">
-                <button className="btn btn-secondary w-full justify-start">
-                  ➕ Add New Product
-                </button>
-                <button className="btn btn-secondary w-full justify-start">
-                  📊 Export Report
-                </button>
-                <button className="btn btn-secondary w-full justify-start">
-                  📈 View Full Analytics
-                </button>
-              </div>
-            </div>
-
-            {/* Decision Legend */}
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--card-foreground)' }}>
-                📖 Decision Guide
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <span className="badge badge-danger shrink-0">🔴 Refill Now</span>
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    Stock below minimum. Order immediately.
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="badge badge-success shrink-0">🟢 Hold</span>
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    Stock level healthy. No action needed.
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="badge badge-warning shrink-0">🟡 Stop Reorder</span>
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    No recent sales. Consider discontinuing.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Dead Stock Alert */}
-            {deadStockCount > 0 && (
-              <div className="card" style={{ borderColor: 'var(--warning)', borderWidth: '2px' }}>
-                <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--warning)' }}>
-                  ⚠️ Dead Stock Alert
-                </h2>
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  {deadStockCount} product(s) have no recent sales. Consider clearance sale or discontinuing to free up capital.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Products Table */}
-        <div className="card mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--card-foreground)' }}>
-              📦 All Products
-            </h2>
-            <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              {products.length} total items
-            </span>
-          </div>
-
-          {loading ? (
-            <TableSkeleton />
-          ) : products.length === 0 ? (
-            <div className="text-center py-12" style={{ color: 'var(--muted-foreground)' }}>
-              <p className="text-4xl mb-2">📭</p>
-              <p>No products in inventory yet.</p>
+          {refillNow.length === 0 && stopReorder.length === 0 ? (
+            <div className="glass-card">
+              <p className="summary-text">
+                <span className="success">✓ All clear.</span> No immediate actions required.
+                Your inventory is healthy.
+              </p>
             </div>
           ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Product Name</th>
-                    <th>SKU</th>
-                    <th>Category</th>
-                    <th>Stock</th>
-                    <th>Cost Price</th>
-                    <th>Selling Price</th>
-                    <th>Margin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product, index) => {
-                    const margin = ((product.sellingPrice - product.costPrice) / product.costPrice * 100).toFixed(1);
-                    return (
-                      <tr key={product._id} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
-                        <td className="font-medium">{product.name}</td>
-                        <td style={{ color: 'var(--muted-foreground)' }}>{product.sku}</td>
-                        <td>
-                          <span className="badge" style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
-                            {product.category}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={product.stockQuantity < product.minStockLevel ? '' : ''}
-                            style={{
-                              color: product.stockQuantity < product.minStockLevel ? 'var(--danger)' : 'var(--success)',
-                              fontWeight: 600
-                            }}>
-                            {product.stockQuantity}
-                          </span>
-                          <span style={{ color: 'var(--muted-foreground)' }}> / {product.minStockLevel}</span>
-                        </td>
-                        <td>₹{product.costPrice.toLocaleString('en-IN')}</td>
-                        <td>₹{product.sellingPrice.toLocaleString('en-IN')}</td>
-                        <td>
-                          <span style={{ color: Number(margin) > 20 ? 'var(--success)' : 'var(--warning)' }}>
-                            {margin}%
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="glass-card">
+              <p className="summary-text" style={{ marginBottom: 'var(--space-lg)' }}>
+                {refillNow.length > 0 && (
+                  <>
+                    <strong className="danger">{refillNow.length} product{refillNow.length > 1 ? 's' : ''}</strong>
+                    {' '}need reordering.
+                  </>
+                )}
+                {refillNow.length > 0 && stopReorder.length > 0 && ' '}
+                {stopReorder.length > 0 && (
+                  <>
+                    <strong className="warning">{stopReorder.length} product{stopReorder.length > 1 ? 's' : ''}</strong>
+                    {' '}should stop being reordered
+                    {capitalAtRisk > 0 && (
+                      <> — <span className="warning">₹{capitalAtRisk.toLocaleString('en-IN')}</span> capital at risk</>
+                    )}.
+                  </>
+                )}
+              </p>
+
+              {/* Action Cards */}
+              <div style={{ display: 'grid', gap: 'var(--space-sm)' }} className="stagger-children">
+                {refillNow.map((item) => {
+                  const product = products.find(p => p._id === item.productId);
+                  return (
+                    <div
+                      key={item.productId}
+                      className="animate-in hover-lift"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 'var(--space-md) var(--space-lg)',
+                        background: 'var(--surface)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--glass-border)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
+                        <span className="decision-pill pill-refill status-pulse">
+                          Refill Now
+                        </span>
+                        <div>
+                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
+                          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)' }}>
+                            {item.stock} in stock • Min: {product?.minStockLevel || '-'}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
+                        {item.decision.reason}
+                      </p>
+                    </div>
+                  );
+                })}
+
+                {stopReorder.map((item) => {
+                  const product = products.find(p => p._id === item.productId);
+                  const value = product ? product.stockQuantity * product.costPrice : 0;
+                  return (
+                    <div
+                      key={item.productId}
+                      className="animate-in hover-lift"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 'var(--space-md) var(--space-lg)',
+                        background: 'var(--surface)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--glass-border)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
+                        <span className="decision-pill pill-stop">
+                          Stop Reorder
+                        </span>
+                        <div>
+                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
+                          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)' }}>
+                            {item.stock} in stock {value > 0 && `• ₹${value.toLocaleString('en-IN')} value`}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
+                        {item.decision.reason}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Sales Trends */}
-        {trends.length > 0 && (
-          <div className="card mt-6">
-            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--card-foreground)' }}>
-              📈 Top Selling Products (Last 7 Days)
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {trends.slice(0, 6).map((trend, index) => {
-                const product = products.find(p => p._id === trend._id);
-                return (
-                  <div key={trend._id} className="p-4 rounded-lg" style={{ background: 'var(--muted)' }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
-                        #{index + 1}
-                      </span>
-                      <div>
-                        <p className="font-medium">{product?.name || 'Unknown Product'}</p>
-                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                          {trend.totalSold} units sold
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* ════════════════════════════════════════════════════════════
+            INVENTORY HEALTH SNAPSHOT
+            ════════════════════════════════════════════════════════════ */}
+        <section className="animate-in" style={{ marginBottom: 'var(--space-2xl)', animationDelay: '100ms' }}>
+          <div className="section-header">
+            <h2>Inventory Health</h2>
           </div>
-        )}
+
+          <div className="glass-card">
+            <p className="summary-text">
+              You have <strong>{products.length} products</strong> worth{' '}
+              <strong>₹{totalInventoryValue.toLocaleString('en-IN')}</strong> in inventory.{' '}
+              <span className="success">{holdItems.length}</span> are at healthy levels
+              {refillNow.length > 0 && (
+                <>, <span className="danger">{refillNow.length}</span> need restocking</>
+              )}
+              {stopReorder.length > 0 && (
+                <>, and <span className="warning">{stopReorder.length}</span> are not moving</>
+              )}.
+              {trends.length > 0 && (
+                <> Your top seller this week is <strong>{
+                  products.find(p => p._id === trends[0]?._id)?.name || 'Unknown'
+                }</strong>.</>
+              )}
+            </p>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════════
+            PRODUCTS TABLE
+            ════════════════════════════════════════════════════════════ */}
+        <section className="animate-in" style={{ animationDelay: '200ms' }}>
+          <div className="section-header">
+            <h2>All Products</h2>
+            <span className="count">{products.length}</span>
+          </div>
+
+          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Stock</th>
+                  <th>Decision</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody className="stagger-children">
+                {refillDecisions.map((item) => {
+                  const product = products.find(p => p._id === item.productId);
+                  const stockLevel = product ? getStockLevel(product.stockQuantity, product.minStockLevel) : 'healthy';
+                  const stockPct = product ? Math.min(100, (product.stockQuantity / product.minStockLevel) * 100) : 0;
+
+                  return (
+                    <tr key={item.productId} className="animate-in">
+                      <td>
+                        <div>
+                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
+                          <p className="text-subtle font-mono" style={{ fontSize: 'var(--text-xs)' }}>
+                            {product?.sku || '-'}
+                          </p>
+                        </div>
+                      </td>
+                      <td style={{ width: '160px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                          <div className="stock-bar" style={{ flex: 1 }}>
+                            <div
+                              className={`stock-bar-fill ${stockLevel}`}
+                              style={{ width: `${stockPct}%` }}
+                            />
+                          </div>
+                          <span className="text-muted font-mono" style={{ fontSize: 'var(--text-xs)', minWidth: '50px' }}>
+                            {product?.stockQuantity || 0}/{product?.minStockLevel || '-'}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`decision-pill ${item.decision.decision === 'REFILL_NOW' ? 'pill-refill' :
+                            item.decision.decision === 'HOLD' ? 'pill-hold' : 'pill-stop'
+                          }`}>
+                          {item.decision.decision === 'REFILL_NOW' ? 'Refill Now' :
+                            item.decision.decision === 'HOLD' ? 'Hold' : 'Stop Reorder'}
+                        </span>
+                      </td>
+                      <td>
+                        <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
+                          {item.decision.reason}
+                        </p>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t mt-12 py-6" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Inventory Intelligence • Decision Support System for Indian Material Businesses
+      <footer style={{
+        borderTop: '1px solid var(--glass-border)',
+        marginTop: 'var(--space-2xl)'
+      }}>
+        <div className="max-w-5xl mx-auto px-8 py-6">
+          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)', textAlign: 'center' }}>
+            Inventory Intelligence • Decision Support System
           </p>
         </div>
       </footer>
