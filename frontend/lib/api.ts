@@ -67,3 +67,22 @@ export async function addProduct(product: Omit<Product, '_id' | 'createdAt' | 'u
     if (!res.ok) throw new Error('Failed to add product');
     return res.json();
 }
+
+// Update stock quantity
+export async function updateStock(productId: string, stockQuantity: number): Promise<Product> {
+    const res = await fetch(`${API_BASE_URL}/api/inventory/${productId}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockQuantity }),
+    });
+    if (!res.ok) throw new Error('Failed to update stock');
+    return res.json();
+}
+
+// Delete a product
+export async function deleteProduct(productId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/api/inventory/${productId}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete product');
+}

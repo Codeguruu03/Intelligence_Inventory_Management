@@ -5,10 +5,37 @@ import {
   fetchProducts,
   fetchRefillDecisions,
   fetchTrends,
+  addProduct,
+  updateStock,
   Product,
   RefillDecision,
   TrendData
 } from '@/lib/api';
+
+// Modal
+function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  if (!isOpen) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
+      <div className="card animate" style={{ maxWidth: '420px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <span style={{ fontSize: '15px', fontWeight: 600 }}>{title}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#999' }}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Input({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
+      <input {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px' }} />
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -16,329 +43,244 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState<string>('');
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [productsData, refillData, trendsData] = await Promise.all([
-          fetchProducts(),
-          fetchRefillDecisions(),
-          fetchTrends(),
-        ]);
-        setProducts(productsData);
-        setRefillDecisions(refillData);
-        setTrends(trendsData);
-        setError(null);
-      } catch (err) {
-        setError('Unable to connect to server');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [selected, setSelected] = useState<Product | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
-  useEffect(() => {
-    setCurrentTime(new Date().toLocaleDateString('en-IN', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short'
-    }));
-  }, [loading]);
+  const [form, setForm] = useState({ name: '', sku: '', category: '', stockQuantity: 0, costPrice: 0, sellingPrice: 0, minStockLevel: 10 });
+  const [newQty, setNewQty] = useState(0);
 
-  // Categorize decisions
+  async function load() {
+    try {
+      setLoading(true);
+      const [p, r, t] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends()]);
+      setProducts(p); setRefillDecisions(r); setTrends(t); setError(null);
+    } catch { setError('Unable to connect'); }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault(); setFormLoading(true);
+    try { await addProduct(form); setShowAdd(false); setForm({ name: '', sku: '', category: '', stockQuantity: 0, costPrice: 0, sellingPrice: 0, minStockLevel: 10 }); await load(); }
+    catch { alert('Failed'); } finally { setFormLoading(false); }
+  }
+
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault(); if (!selected) return; setFormLoading(true);
+    try { await updateStock(selected._id, newQty); setShowUpdate(false); await load(); }
+    catch { alert('Failed'); } finally { setFormLoading(false); }
+  }
+
   const refillNow = refillDecisions.filter(d => d.decision.decision === 'REFILL_NOW');
   const holdItems = refillDecisions.filter(d => d.decision.decision === 'HOLD');
   const stopReorder = refillDecisions.filter(d => d.decision.decision === 'STOP_REORDER');
+  const totalValue = products.reduce((s, p) => s + (p.stockQuantity * p.costPrice), 0);
+  const atRisk = stopReorder.reduce((s, i) => { const p = products.find(x => x._id === i.productId); return s + (p ? p.stockQuantity * p.costPrice : 0); }, 0);
 
-  // Calculate values
-  const totalInventoryValue = products.reduce((sum, p) => sum + (p.stockQuantity * p.costPrice), 0);
-  const capitalAtRisk = stopReorder.reduce((sum, item) => {
-    const product = products.find(p => p._id === item.productId);
-    return sum + (product ? product.stockQuantity * product.costPrice : 0);
-  }, 0);
+  const lvl = (c: number, m: number) => { const p = (c / m) * 100; return p < 50 ? 'red' : p < 100 ? 'yellow' : 'green'; };
 
-  // Get stock level class
-  const getStockLevel = (current: number, min: number) => {
-    const pct = (current / min) * 100;
-    if (pct < 50) return 'low';
-    if (pct < 100) return 'medium';
-    return 'healthy';
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted">Loading inventory data...</p>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f4f3ef' }}><p className="text-muted">Loading...</p></div>;
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
-      {/* Header */}
-      <header style={{
-        borderBottom: '1px solid var(--glass-border)',
-        background: 'var(--background)'
-      }}>
-        <div className="max-w-5xl mx-auto px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 style={{
-                fontSize: 'var(--text-xl)',
-                fontWeight: 600,
-                color: 'var(--foreground)',
-                letterSpacing: '-0.02em'
-              }}>
-                Inventory Intelligence
-              </h1>
-              <p className="text-muted" style={{ fontSize: 'var(--text-sm)', marginTop: '2px' }}>
-                {currentTime}
-              </p>
-            </div>
-            <button className="btn btn-ghost" onClick={() => window.location.reload()}>
-              Refresh
-            </button>
+    <div style={{ background: '#f4f3ef', minHeight: '100vh' }}>
+      {/* MAIN */}
+      <main className="main-no-sidebar">
+        {/* Header */}
+        <div className="header">
+          <h1 className="title">Here's what needs your attention today</h1>
+          <div className="header-right">
+            <button className="btn btn-dark" onClick={() => setShowAdd(true)}>+ Add Product</button>
+            <button className="btn btn-light" onClick={load}>↻ Refresh</button>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-5xl mx-auto px-8 py-10">
+        {error && <div className="card" style={{ background: '#fdf2f2', marginBottom: '20px' }}><p style={{ color: '#e74c3c' }}>{error}</p></div>}
 
-        {/* Error */}
-        {error && (
-          <div className="glass-card animate-in" style={{
-            marginBottom: 'var(--space-xl)',
-            borderColor: 'var(--danger-border)',
-            background: 'var(--danger-subtle)'
-          }}>
-            <p className="text-danger">{error}</p>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════
-            TODAY'S ACTIONS
-            ════════════════════════════════════════════════════════════ */}
-        <section className="animate-in" style={{ marginBottom: 'var(--space-2xl)' }}>
-          <div className="section-header">
-            <h2>Today's Actions</h2>
-          </div>
-
-          {refillNow.length === 0 && stopReorder.length === 0 ? (
-            <div className="glass-card">
-              <p className="summary-text">
-                <span className="success">✓ All clear.</span> No immediate actions required.
-                Your inventory is healthy.
-              </p>
-            </div>
-          ) : (
-            <div className="glass-card">
-              <p className="summary-text" style={{ marginBottom: 'var(--space-lg)' }}>
-                {refillNow.length > 0 && (
-                  <>
-                    <strong className="danger">{refillNow.length} product{refillNow.length > 1 ? 's' : ''}</strong>
-                    {' '}need reordering.
-                  </>
-                )}
-                {refillNow.length > 0 && stopReorder.length > 0 && ' '}
-                {stopReorder.length > 0 && (
-                  <>
-                    <strong className="warning">{stopReorder.length} product{stopReorder.length > 1 ? 's' : ''}</strong>
-                    {' '}should stop being reordered
-                    {capitalAtRisk > 0 && (
-                      <> — <span className="warning">₹{capitalAtRisk.toLocaleString('en-IN')}</span> capital at risk</>
-                    )}.
-                  </>
-                )}
-              </p>
-
-              {/* Action Cards */}
-              <div style={{ display: 'grid', gap: 'var(--space-sm)' }} className="stagger-children">
-                {refillNow.map((item) => {
-                  const product = products.find(p => p._id === item.productId);
-                  return (
-                    <div
-                      key={item.productId}
-                      className="animate-in hover-lift"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: 'var(--space-md) var(--space-lg)',
-                        background: 'var(--surface)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--glass-border)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
-                        <span className="decision-pill pill-refill status-pulse">
-                          Refill Now
-                        </span>
-                        <div>
-                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
-                          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)' }}>
-                            {item.stock} in stock • Min: {product?.minStockLevel || '-'}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
-                        {item.decision.reason}
-                      </p>
-                    </div>
-                  );
-                })}
-
-                {stopReorder.map((item) => {
-                  const product = products.find(p => p._id === item.productId);
-                  const value = product ? product.stockQuantity * product.costPrice : 0;
-                  return (
-                    <div
-                      key={item.productId}
-                      className="animate-in hover-lift"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: 'var(--space-md) var(--space-lg)',
-                        background: 'var(--surface)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--glass-border)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
-                        <span className="decision-pill pill-stop">
-                          Stop Reorder
-                        </span>
-                        <div>
-                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
-                          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)' }}>
-                            {item.stock} in stock {value > 0 && `• ₹${value.toLocaleString('en-IN')} value`}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
-                        {item.decision.reason}
-                      </p>
-                    </div>
-                  );
-                })}
+        {/* TOP GRID - Match reference layout */}
+        <div className="grid-top">
+          {/* Left: Actions */}
+          <div className="card animate">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div>
+                <div className="card-title">Today's Inventory Actions</div>
+                <div className="card-subtitle">{refillNow.length + stopReorder.length} items need attention</div>
               </div>
             </div>
-          )}
-        </section>
 
-        {/* ════════════════════════════════════════════════════════════
-            INVENTORY HEALTH SNAPSHOT
-            ════════════════════════════════════════════════════════════ */}
-        <section className="animate-in" style={{ marginBottom: 'var(--space-2xl)', animationDelay: '100ms' }}>
-          <div className="section-header">
-            <h2>Inventory Health</h2>
+            {refillNow.length === 0 && stopReorder.length === 0 ? (
+              <div style={{ padding: '30px', textAlign: 'center', background: '#f8fdf8', borderRadius: '12px' }}>
+                <p style={{ color: '#27ae60', fontWeight: 500 }}>✓ All inventory healthy</p>
+              </div>
+            ) : (
+              <div>
+                {refillNow.map(item => (
+                  <div key={item.productId} className="action-row">
+                    <div className="action-dot red"></div>
+                    <div className="action-content">
+                      <div className="action-name">{item.name}</div>
+                      <div className="action-detail">Stock: {item.stock} — {item.decision.reason}</div>
+                    </div>
+                    <span className="action-badge red">Refill Now</span>
+                  </div>
+                ))}
+                {stopReorder.map(item => (
+                  <div key={item.productId} className="action-row">
+                    <div className="action-dot yellow"></div>
+                    <div className="action-content">
+                      <div className="action-name">{item.name}</div>
+                      <div className="action-detail">{item.decision.reason}</div>
+                    </div>
+                    <span className="action-badge yellow">Stop Reorder</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="glass-card">
-            <p className="summary-text">
-              You have <strong>{products.length} products</strong> worth{' '}
-              <strong>₹{totalInventoryValue.toLocaleString('en-IN')}</strong> in inventory.{' '}
-              <span className="success">{holdItems.length}</span> are at healthy levels
-              {refillNow.length > 0 && (
-                <>, <span className="danger">{refillNow.length}</span> need restocking</>
-              )}
-              {stopReorder.length > 0 && (
-                <>, and <span className="warning">{stopReorder.length}</span> are not moving</>
-              )}.
-              {trends.length > 0 && (
-                <> Your top seller this week is <strong>{
-                  products.find(p => p._id === trends[0]?._id)?.name || 'Unknown'
-                }</strong>.</>
-              )}
-            </p>
+          {/* Right: Stats stacked */}
+          <div className="grid-right">
+            <div className="card card-sm animate">
+              <div className="card-title">Inventory Value</div>
+              <div className="big-number" style={{ marginTop: '8px' }}>₹{totalValue.toLocaleString('en-IN')}</div>
+              <div className="number-label">{products.length} products total</div>
+            </div>
+            <div className="card card-sm animate">
+              <div className="card-title">Capital at Risk</div>
+              <div className="big-number yellow" style={{ marginTop: '8px' }}>₹{atRisk.toLocaleString('en-IN')}</div>
+              <div className="number-label">{stopReorder.length} slow-moving items</div>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* ════════════════════════════════════════════════════════════
-            PRODUCTS TABLE
-            ════════════════════════════════════════════════════════════ */}
-        <section className="animate-in" style={{ animationDelay: '200ms' }}>
-          <div className="section-header">
-            <h2>All Products</h2>
-            <span className="count">{products.length}</span>
+        {/* BOTTOM GRID */}
+        <div className="grid-bottom">
+          {/* Left: Stats row */}
+          <div className="card animate">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+              <div>
+                <div className="big-number red">{refillNow.length}</div>
+                <div className="number-label">Products to Refill</div>
+                <div className="card-subtitle mt-4">Need immediate action</div>
+              </div>
+              <div>
+                <div className="big-number green">{holdItems.length}</div>
+                <div className="number-label">Healthy Stock</div>
+                <div className="card-subtitle mt-4">Optimal levels</div>
+              </div>
+              <div>
+                <div className="big-number yellow">{stopReorder.length}</div>
+                <div className="number-label">Stop Reordering</div>
+                <div className="card-subtitle mt-4">Low demand</div>
+              </div>
+            </div>
           </div>
 
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Stock</th>
-                  <th>Decision</th>
-                  <th>Reason</th>
-                </tr>
-              </thead>
-              <tbody className="stagger-children">
-                {refillDecisions.map((item) => {
-                  const product = products.find(p => p._id === item.productId);
-                  const stockLevel = product ? getStockLevel(product.stockQuantity, product.minStockLevel) : 'healthy';
-                  const stockPct = product ? Math.min(100, (product.stockQuantity / product.minStockLevel) * 100) : 0;
-
-                  return (
-                    <tr key={item.productId} className="animate-in">
-                      <td>
-                        <div>
-                          <p style={{ fontWeight: 500, color: 'var(--foreground)' }}>{item.name}</p>
-                          <p className="text-subtle font-mono" style={{ fontSize: 'var(--text-xs)' }}>
-                            {product?.sku || '-'}
-                          </p>
-                        </div>
-                      </td>
-                      <td style={{ width: '160px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                          <div className="stock-bar" style={{ flex: 1 }}>
-                            <div
-                              className={`stock-bar-fill ${stockLevel}`}
-                              style={{ width: `${stockPct}%` }}
-                            />
-                          </div>
-                          <span className="text-muted font-mono" style={{ fontSize: 'var(--text-xs)', minWidth: '50px' }}>
-                            {product?.stockQuantity || 0}/{product?.minStockLevel || '-'}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`decision-pill ${item.decision.decision === 'REFILL_NOW' ? 'pill-refill' :
-                            item.decision.decision === 'HOLD' ? 'pill-hold' : 'pill-stop'
-                          }`}>
-                          {item.decision.decision === 'REFILL_NOW' ? 'Refill Now' :
-                            item.decision.decision === 'HOLD' ? 'Hold' : 'Stop Reorder'}
-                        </span>
-                      </td>
-                      <td>
-                        <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
-                          {item.decision.reason}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Right: Quick actions */}
+          <div className="grid-bottom-right">
+            <div className="card card-sm animate">
+              <div className="card-title">Refill Recommendations</div>
+              <div style={{ marginTop: '12px' }}>
+                {refillNow.slice(0, 2).map(item => (
+                  <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#e74c3c' }}></div>
+                    <span className="text-sm">{item.name}</span>
+                  </div>
+                ))}
+                {refillNow.length === 0 && <p className="text-muted text-sm">No refills needed</p>}
+              </div>
+            </div>
+            <div className="card card-sm animate">
+              <div className="card-title">At-Risk Inventory</div>
+              <div style={{ marginTop: '12px' }}>
+                {stopReorder.slice(0, 2).map(item => (
+                  <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f1c40f' }}></div>
+                    <span className="text-sm">{item.name}</span>
+                  </div>
+                ))}
+                {stopReorder.length === 0 && <p className="text-muted text-sm">No at-risk items</p>}
+              </div>
+            </div>
           </div>
-        </section>
+        </div>
+
+        {/* TABLE */}
+        <div className="card animate" style={{ padding: 0, marginTop: '20px' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e9e8e4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div className="card-title">All Products</div>
+              <div className="card-subtitle">{products.length} items in inventory</div>
+            </div>
+          </div>
+
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Stock Level</th>
+                <th>Decision</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {refillDecisions.map(item => {
+                const p = products.find(x => x._id === item.productId);
+                const level = p ? lvl(p.stockQuantity, p.minStockLevel) : 'green';
+                const pct = p ? Math.min(100, (p.stockQuantity / p.minStockLevel) * 100) : 0;
+
+                return (
+                  <tr key={item.productId}>
+                    <td><span style={{ fontWeight: 500 }}>{item.name}</span></td>
+                    <td><span className="font-mono text-muted">{p?.sku}</span></td>
+                    <td>
+                      <div className="stock-bar"><div className={`stock-fill ${level}`} style={{ width: `${pct}%` }}></div></div>
+                      <span className="text-muted text-sm">{p?.stockQuantity}/{p?.minStockLevel}</span>
+                    </td>
+                    <td>
+                      <span className={`action-badge ${item.decision.decision === 'REFILL_NOW' ? 'red' : item.decision.decision === 'HOLD' ? 'green' : 'yellow'}`}>
+                        {item.decision.decision === 'REFILL_NOW' ? 'Refill Now' : item.decision.decision === 'HOLD' ? 'Healthy' : 'Stop Reorder'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="btn btn-light btn-sm" onClick={() => { setSelected(p!); setNewQty(p!.stockQuantity); setShowUpdate(true); }}>Update</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid var(--glass-border)',
-        marginTop: 'var(--space-2xl)'
-      }}>
-        <div className="max-w-5xl mx-auto px-8 py-6">
-          <p className="text-subtle" style={{ fontSize: 'var(--text-xs)', textAlign: 'center' }}>
-            Inventory Intelligence • Decision Support System
-          </p>
-        </div>
-      </footer>
+      {/* MODALS */}
+      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add New Product">
+        <form onSubmit={handleAdd}>
+          <Input label="Product Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g., Portland Cement 50kg" />
+          <Input label="SKU" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required placeholder="e.g., CEM-001" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <Input label="Stock Qty" type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: +e.target.value })} min={0} />
+            <Input label="Min Stock" type="number" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: +e.target.value })} min={1} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <Input label="Cost (₹)" type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: +e.target.value })} min={0} />
+            <Input label="Sell (₹)" type="number" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: +e.target.value })} min={0} />
+          </div>
+          <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '14px' }} disabled={formLoading}>{formLoading ? 'Adding...' : 'Add Product'}</button>
+        </form>
+      </Modal>
+
+      <Modal isOpen={showUpdate} onClose={() => setShowUpdate(false)} title="Update Stock">
+        <form onSubmit={handleUpdate}>
+          <p className="text-muted" style={{ marginBottom: '14px' }}>Updating: <strong style={{ color: '#1a1a1a' }}>{selected?.name}</strong></p>
+          <Input label="New Stock Quantity" type="number" value={newQty} onChange={(e) => setNewQty(+e.target.value)} min={0} autoFocus />
+          <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '14px' }} disabled={formLoading}>{formLoading ? 'Updating...' : 'Update Stock'}</button>
+        </form>
+      </Modal>
     </div>
   );
 }
