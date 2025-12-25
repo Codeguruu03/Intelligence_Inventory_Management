@@ -167,21 +167,29 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Bar Chart */}
-            <div className="bar-chart">
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div className="bar-chart-bar red" style={{ height: `${Math.max(20, refillNow.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
-                <div className="bar-chart-label">Refill<br />{refillNow.length}</div>
-              </div>
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div className="bar-chart-bar green" style={{ height: `${Math.max(20, holdItems.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
-                <div className="bar-chart-label">Healthy<br />{holdItems.length}</div>
-              </div>
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div className="bar-chart-bar yellow" style={{ height: `${Math.max(20, stopReorder.length * 25)}px`, margin: '0 auto', width: '40px' }}></div>
-                <div className="bar-chart-label">Stop<br />{stopReorder.length}</div>
-              </div>
-            </div>
+            {/* Bar Chart - Fixed height with proportional scaling */}
+            {(() => {
+              const maxCount = Math.max(refillNow.length, holdItems.length, stopReorder.length, 1);
+              const maxHeight = 100; // Max bar height in pixels
+              const getHeight = (count: number) => Math.max(15, (count / maxCount) * maxHeight);
+
+              return (
+                <div className="bar-chart">
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div className="bar-chart-bar red" style={{ height: `${getHeight(refillNow.length)}px`, margin: '0 auto', width: '40px' }}></div>
+                    <div className="bar-chart-label">Refill<br />{refillNow.length}</div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div className="bar-chart-bar green" style={{ height: `${getHeight(holdItems.length)}px`, margin: '0 auto', width: '40px' }}></div>
+                    <div className="bar-chart-label">Healthy<br />{holdItems.length}</div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div className="bar-chart-bar yellow" style={{ height: `${getHeight(stopReorder.length)}px`, margin: '0 auto', width: '40px' }}></div>
+                    <div className="bar-chart-label">Stop<br />{stopReorder.length}</div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="chart-legend">
               <div className="legend-item"><div className="legend-dot red"></div> Needs Refill</div>
