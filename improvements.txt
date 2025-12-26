@@ -1,0 +1,635 @@
+================================================================================
+INVENTORY INTELLIGENCE - FEATURE ROADMAP
+Proposed Enhancements & New Functionalities
+================================================================================
+
+================================================================================
+1. AUTHENTICATION & SECURITY 🔐
+================================================================================
+
+1.1 USER AUTHENTICATION
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Implement a JWT-based user authentication system to secure the application and 
+enable multi-user support with individual user accounts and sessions.
+
+FEATURES:
+  • User Registration - Self-signup with email verification
+    - Validate email format and uniqueness
+    - Send verification email with confirmation link
+    - Automatically create account after email verification
+    - Email template customization
+  
+  • User Login - Secure JWT token generation
+    - Username/email with password authentication
+    - Generate JWT tokens on successful login
+    - Store tokens securely in browser (httpOnly cookies)
+    - Automatic token refresh mechanism
+    - Login attempt tracking and rate limiting
+  
+  • Password Reset - Forgot password functionality
+    - Send password reset link via email
+    - Validate reset token expiration (15 min window)
+    - New password strength validation (min 8 chars, special chars)
+    - Reset link one-time use only
+    - Email notification of password change
+  
+  • Session Management
+    - Track active user sessions
+    - Logout functionality (token invalidation)
+    - Auto logout on token expiration
+    - Remember me option (30-day tokens)
+
+IMPLEMENTATION:
+  Backend: Add JWT middleware, user model, auth routes
+  Frontend: Login form, register form, password reset flow
+  Security: Hash passwords with bcrypt, validate JWT on each request
+
+────────────────────────────────────────────────────────────────────────────
+
+1.2 ROLE-BASED ACCESS CONTROL
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Implement role-based permissions to control what different users can do in 
+the system based on their assigned roles.
+
+FEATURES:
+  • Admin Role
+    - Full system access
+    - Create/edit/delete users
+    - View audit logs
+    - Access all inventory
+    - System settings management
+    - Gene reportrate alls
+  
+  • Warehouse Manager Role
+    - View all inventory
+    - Add/edit products
+    - Record sales
+    - Create purchase orders
+    - View analytics
+    - Cannot delete users or change system settings
+  
+  • Viewer Role (Read-Only)
+    - View all inventory
+    - View analytics and reports
+    - Cannot modify any data
+    - Cannot delete anything
+    - Ideal for executives/stakeholders
+  
+  • Supplier Role (Optional)
+    - View only their supplied products
+    - Track their sales
+    - Cannot modify inventory
+    - View order history
+
+IMPLEMENTATION:
+  Backend: Add role field to user model, middleware for role checking
+  Frontend: Hide/disable buttons based on user role
+  Routes: Protect endpoints with role verification
+
+────────────────────────────────────────────────────────────────────────────
+
+1.3 AUDIT TRAIL
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Create a comprehensive audit trail to track all changes made to inventory, 
+products, and system settings for compliance and troubleshooting.
+
+FEATURES:
+  • Activity Logging
+    - Log every CRUD operation (Create, Read, Update, Delete)
+    - Timestamp each action
+    - Record which user performed the action
+    - IP address logging
+    - Action type categorization:
+      * Product added
+      * Stock updated
+      * Price changed
+      * Product deleted
+      * Sale recorded
+      * User created/deleted
+  
+  • Change History
+    - View complete history of product changes
+    - See before/after values for each change
+    - Filter history by date range
+    - Filter by user
+    - Export change history as report
+    - Rollback capability for accidental changes
+  
+  • Delete Recovery (Soft Deletes)
+    - Instead of hard delete, mark as deleted
+    - Keep deleted items in archive
+    - Restore deleted products within 30 days
+    - Permanently purge after retention period
+    - Track who deleted and when
+  
+  • Audit Dashboard
+    - View recent activities (last 100 actions)
+    - Filter by user, product, action type, date
+    - Search for specific changes
+    - Export audit logs as CSV/PDF
+    - Real-time activity stream
+
+IMPLEMENTATION:
+  Backend: Create auditLog model, middleware to log all changes
+  Frontend: Audit history modal/page, activity timeline view
+  Database: Timestamp indexes for fast queries
+
+────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+2. ADVANCED ANALYTICS 📊
+================================================================================
+
+2.1 TIME-SERIES ANALYSIS
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Analyze inventory data over time to identify trends, patterns, and seasonal 
+variations in sales and stock movements.
+
+FEATURES:
+  • Daily Sales Charts
+    - Line graph showing daily sales volume over selected period
+    - X-axis: Date (1-90 days)
+    - Y-axis: Units sold
+    - Hover tooltips showing exact sales
+    - Compare multiple products on same chart
+    - Toggle between quantity and revenue view
+  
+  • Weekly/Monthly Comparison
+    - Compare performance across different weeks/months
+    - Identify best performing weeks/months
+    - Calculate week-over-week growth percentage
+    - Month-over-month trend analysis
+    - Highlight peak and low periods
+    - Bar charts with trend lines
+  
+  • Seasonal Pattern Detection
+    - Identify products with seasonal demand
+    - Mark peak seasons (e.g., monsoon, summer)
+    - Calculate seasonal index for each product
+    - Forecast next season based on historical data
+    - Alert for season change (e.g., "Cement demand increases in Dec")
+    - Category-wise seasonal patterns
+  
+  • Trend Forecasting (Non-ML)
+    - Simple moving average (7-day, 14-day, 30-day)
+    - Trend extrapolation for next 30 days
+    - Confidence intervals shown as shaded area
+    - Linear regression forecast
+    - Display forecast vs actual accuracy
+    - Help with inventory planning
+
+IMPLEMENTATION:
+  Backend: Aggregate sales by day/week/month, calculate trends
+  Frontend: Line charts with date range picker
+  Math: Use simple moving average, linear regression formulas
+
+────────────────────────────────────────────────────────────────────────────
+
+2.2 FINANCIAL INSIGHTS
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Provide financial analysis of inventory to understand profitability, revenue 
+generation, and cost structure.
+
+FEATURES:
+  • Profit Margin Tracking
+    - Calculate profit per product: (sellingPrice - costPrice) / sellingPrice
+    - Show percentage margin for each product
+    - Identify low-margin products
+    - Calculate total profit across inventory
+    - Highlight high-margin products (best sellers)
+    - Margin trend over time
+  
+  • Revenue by Category
+    - Total revenue generated by each category
+    - Pie/donut chart showing revenue distribution
+    - Category ranking by revenue
+    - Revenue trend for each category (line chart)
+    - Top 10 categories by revenue
+    - Category profitability analysis
+  
+  • Cost Analysis
+    - Identify most expensive inventory items
+    - Total capital tied in expensive items
+    - Cost per unit analysis
+    - Bulk cost vs retail tracking
+    - Cost comparison with previous periods
+    - Highlight items with rising costs
+  
+  • ROI Calculation
+    - Calculate ROI = (Revenue - Cost) / Cost × 100
+    - Track ROI per product
+    - ROI per category
+    - Overall portfolio ROI
+    - Compare ROI across periods
+    - Identify best/worst ROI items
+  
+  • Financial Dashboard
+    - Summary cards: Total Revenue, Total Cost, Total Profit, Overall ROI
+    - Period selector (today, this week, this month, custom)
+    - Financial trend charts
+    - Category profitability heatmap
+    - Export financial report as PDF
+
+IMPLEMENTATION:
+  Backend: Calculate margins, revenue, profit in analytics controller
+  Frontend: Financial dashboard with multiple chart types
+  Database: Efficient aggregation queries
+
+────────────────────────────────────────────────────────────────────────────
+
+2.3 INVENTORY HEALTH METRICS
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Monitor inventory health with key metrics to optimize stock levels and 
+identify issues.
+
+FEATURES:
+  • Stock Turnover Ratio
+    - Formula: COGS / Average Inventory
+    - Ratio > 5 = Good (fast-moving)
+    - Ratio 2-5 = Average
+    - Ratio < 2 = Slow-moving
+    - Calculate per product, per category
+    - Identify fast movers vs slow movers
+    - Monthly and yearly comparisons
+  
+  • Inventory Aging Analysis
+    - Track how long items sit in warehouse
+    - Color code by age:
+      * Green (0-30 days): Fresh stock
+      * Yellow (30-90 days): Aging
+      * Orange (90-180 days): Old stock
+      * Red (>180 days): Dead stock
+    - Alert on aging inventory
+    - Suggest markdowns for old stock
+    - Calculate carrying cost by age group
+  
+  • Carrying Cost Calculation
+    - Formula: (Average Inventory × Holding Cost %) / 365
+    - Include storage, insurance, spoilage costs
+    - Calculate total carrying cost
+    - Identify items with high carrying costs
+    - Suggest reducing stock levels
+    - Compare carrying cost vs profit
+  
+  • Stock-Out Prediction
+    - Calculate when each product will stockout based on sales velocity
+    - Alert if stockout predicted within 7 days
+    - Suggest reorder urgency
+    - Historical accuracy of predictions
+    - Integration with reorder system
+    - Lead time consideration
+
+IMPLEMENTATION:
+  Backend: Complex aggregation for metrics, date calculations
+  Frontend: Metric dashboard with KPI cards
+  Alerts: Real-time calculation on data updates
+
+────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+3. ADVANCED INVENTORY FEATURES
+================================================================================
+
+3.1 BATCH & EXPIRY MANAGEMENT
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Track product batches and expiry dates to ensure quality control and prevent 
+sale of expired items, especially important for perishable/construction materials.
+
+FEATURES:
+  • Batch Tracking
+    - Assign batch IDs to product purchases
+    - Link batches to suppliers
+    - Track purchase date and cost per batch
+    - Record batch quantity received
+    - Monitor batch-wise stock levels
+    - View entire batch history
+  
+  • Expiry Date Management
+    - Record expiry date for each batch
+    - Warn when expiry approaching (30 days before)
+    - Prevent sales of expired items
+    - Auto-remove expired items from saleable stock
+    - Bulk expiry date updates
+    - Expiry calendar view
+  
+  • FIFO (First In First Out) System
+    - Automatically suggest oldest batches first
+    - Ensure older stock sells before newer
+    - Warn if FIFO not followed
+    - Track FIFO compliance percentage
+    - Enforce FIFO in sale recording
+  
+  • Lot Serialization
+    - Generate unique serial numbers for high-value items
+    - Track individual item movement
+    - Quality control per item
+    - Warranty tracking per serial
+    - Serialized item history
+    - Report generation by serial range
+  
+  • Batch Management Dashboard
+    - List all active batches
+    - Group by product/supplier
+    - Filter by expiry status
+    - Bulk actions (mark as defective, write off)
+    - Batch performance analytics
+    - Expiry risk heatmap
+
+IMPLEMENTATION:
+  Backend: Create batch model linked to products, expiry date alerts
+  Frontend: Batch management modal, expiry warnings in dashboard
+  Database: Index by expiry date for fast queries
+
+────────────────────────────────────────────────────────────────────────────
+
+3.2 SUPPLIER MANAGEMENT
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Maintain comprehensive supplier database and manage supplier relationships 
+to optimize procurement and vendor performance.
+
+FEATURES:
+  • Supplier Database
+    - Store supplier details: Name, Contact, Email, Phone, Address
+    - Tax ID (GSTIN for India)
+    - Bank details for payments
+    - Payment terms (Net 30, Net 60, etc.)
+    - Preferred contact person
+    - Geographic region
+    - Supplier website/catalog
+    - Notes and special requirements
+  
+  • Product-Supplier Mapping
+    - Link products to multiple suppliers
+    - Different price per supplier for same product
+    - Minimum order quantity (MOQ) per supplier
+    - Lead time from each supplier
+    - Discount structure per supplier
+    - Quality rating per supplier-product combo
+  
+  • Supplier Performance Rating
+    - Quality score (0-100): Based on defect returns
+    - Delivery score (0-100): On-time delivery percentage
+    - Price score (0-100): Compare prices across suppliers
+    - Communication score: Response time to inquiries
+    - Overall rating: Weighted combination
+    - Historical performance trends
+    - Identify best and worst suppliers
+  
+  • Purchase Order Integration
+    - Generate PO from inventory system
+    - Auto-fill supplier details, product prices
+    - Attach files (catalogs, agreements)
+    - Set expected delivery date
+    - Track PO status (Draft, Sent, Confirmed, Delivered)
+    - Payment term visibility
+  
+  • Supplier Communication
+    - Send PO digitally via email
+    - Track supplier response time
+    - Store all communication history
+    - Order status tracking with supplier
+    - Alert on delayed deliveries
+  
+  • Supplier Analytics
+    - Top suppliers by volume
+    - Supplier concentration risk (if one supplier dominates)
+    - Cost savings opportunity identification
+    - Supplier reliability scorecard
+    - Annual spending per supplier
+
+IMPLEMENTATION:
+  Backend: Create supplier model, purchase order model, rating calculation
+  Frontend: Supplier management page, supplier detail modal, PO creation form
+  Integration: Email integration for PO sending
+
+────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+6. REPORTING & COMPLIANCE 📋
+================================================================================
+
+6.1 CUSTOM REPORTS
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Generate flexible, customizable reports for various business intelligence 
+and decision-making needs.
+
+FEATURES:
+  • Stock Valuation Report
+    - Current stock quantity per product
+    - Cost price per unit
+    - Total value calculation: Quantity × Cost Price
+    - Category-wise valuation
+    - Supplier-wise valuation
+    - Batch-wise valuation
+    - Historical valuation trends
+    - Export in Excel/PDF format
+    - Filterable by date range
+  
+  • Movement Report
+    - Products sold in selected period (day/week/month/year)
+    - Quantity sold per product
+    - Revenue per product (quantity × selling price)
+    - Movement trend (sold increasing/decreasing)
+    - Category-wise movement
+    - Identify fast-moving vs slow-moving items
+    - Top 20 best sellers
+    - Bottom 20 worst sellers
+    - Velocity tracking
+  
+  • Dead Stock Report
+    - Items with zero sales in last 90/180/365 days
+    - Total quantity of dead stock
+    - Total value tied in dead stock
+    - Recommendation: Clearance sale, discount, write-off
+    - Historical data on these items
+    - Original purchase price vs current value
+    - Holding cost of dead stock
+    - Supplier of dead stock items
+  
+  • Price Change Report
+    - History of all price modifications
+    - Track when and who changed prices
+    - Old price vs new price comparison
+    - Percentage change display
+    - Cost price vs selling price changes separately
+    - Impact analysis (how price change affects margin)
+    - Category-wise price trends
+    - Seasonal price adjustments tracking
+  
+  • Custom Report Builder
+    - Select columns to display
+    - Choose filters (date, category, supplier, etc.)
+    - Add calculated columns (margin, ROI, etc.)
+    - Sort by any column
+    - Group by category/supplier/status
+    - Save custom report templates
+    - Schedule automatic report generation
+    - Share reports with team members
+
+IMPLEMENTATION:
+  Backend: Flexible aggregation queries, report generation service
+  Frontend: Report builder UI with drag-and-drop columns
+  Export: PDF/Excel generation library
+
+────────────────────────────────────────────────────────────────────────────
+
+6.2 REGULATORY COMPLIANCE
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Generate compliance-ready reports for regulatory bodies and financial audits, 
+especially tailored for Indian business requirements.
+
+FEATURES:
+  • GST-Ready Reports (For India)
+    - Monthly GST transaction report
+    - HSN/SAC code tracking per product
+    - Inbound supply register (purchases by GSTIN)
+    - Outbound supply register (sales by GSTIN)
+    - ITC (Input Tax Credit) tracking
+    - Tax invoice format compliance
+    - GST reconciliation report
+    - Auto-calculate applicable GST rates
+    - GSTR-1 preparation (sales to registered dealers)
+    - GSTR-2A comparison (purchase verification)
+  
+  • Inventory Count Sheets
+    - Generate pre-printed count sheets for physical verification
+    - Format: Item #, Product Name, SKU, Location, Expected Qty, Counted Qty
+    - Barcode for quick counting
+    - Organize by location/category
+    - Count sheet signing by warehouse staff
+    - Variance report (expected vs actual)
+    - Track count accuracy over time
+  
+  • Audit Reports
+    - Financial audit trail (all transactions)
+    - Transaction timestamp and responsible person
+    - Reconciliation reports (system vs physical)
+    - Variance analysis and explanations
+    - Approval workflows and signatures
+    - Compliance checklist verification
+    - Internal control testing results
+    - Audit-ready formats
+  
+  • Compliance Dashboard
+    - Check compliance status
+    - Track pending compliance items
+    - Document upload capability
+    - Certificate expiry tracking
+    - Compliance calendar (when reports due)
+    - Compliance metric tracking
+  
+  • Document Management
+    - Store regulatory documents (licenses, certifications)
+    - Track document expiry dates
+    - Alert before document expiration
+    - Version control for documents
+    - Compliance certification storage
+    - ISO/standards certificates
+
+IMPLEMENTATION:
+  Backend: Complex report generation with tax calculations
+  Frontend: Report viewer with export options
+  Storage: Document management system
+
+────────────────────────────────────────────────────────────────────────────
+
+6.3 SCHEDULED REPORTS
+────────────────────────────────────────────────────────────────────────────
+DESCRIPTION:
+Automate report generation and distribution to keep stakeholders informed 
+without manual intervention.
+
+FEATURES:
+  • Daily Summary Emails
+    - Send automated daily recap every morning
+    - Include:
+      * Stock alerts (low stock items)
+      * Sales summary (qty and revenue)
+      * Top selling products
+      * Dead stock warnings
+      * Expiry alerts
+    - Customizable recipient list
+    - Email template customization
+    - Recipient filters (send specific reports to specific users)
+    - Scheduled send time
+  
+  • Weekly Reports
+    - Weekly sales summary
+    - Movement trends (best/worst sellers)
+    - Profit analysis
+    - Stock valuation changes
+    - Supplier performance snapshot
+    - Category breakdown
+    - KPI metrics comparison with previous week
+    - Scheduled every Monday morning
+    - Executive summary format
+  
+  • Monthly Reports
+    - Complete monthly inventory snapshot
+    - Financial analysis (revenue, profit, ROI)
+    - Inventory turnover rate
+    - Supplier performance card
+    - Product performance ranking
+    - Dead stock identification
+    - Budget vs actual analysis
+    - Forecasting for next month
+  
+  • Quarterly Reports
+    - Quarterly financial statement
+    - Trend analysis over 3 months
+    - Strategic recommendations
+    - Year-to-date comparison
+    - Category performance review
+    - Supplier scorecard
+    - Competitive pricing analysis
+  
+  • Excel Export
+    - Multiple sheets in single workbook:
+      * Sheet 1: Summary
+      * Sheet 2: Detailed inventory
+      * Sheet 3: Sales data
+      * Sheet 4: Financial analysis
+      * Sheet 5: Supplier data
+    - Formatted with colors and charts
+    - Formulas for auto-calculations
+    - Ready for further analysis
+    - Pivot table templates included
+  
+  • PDF Generation
+    - Professional PDF reports
+    - Company branding (logo, colors)
+    - Page headers and footers
+    - Chart and graph embedding
+    - Multi-page document support
+    - Secure PDF (password protected)
+    - Digital signature capability
+    - Print-ready layout
+  
+  • Report Scheduling
+    - Select report type
+    - Choose schedule (daily, weekly, monthly, custom)
+    - Set recipients (to email addresses)
+    - Configure send time
+    - Enable/disable schedules
+    - View scheduled report history
+    - Retry on failed send
+
+IMPLEMENTATION:
+  Backend: Cron jobs for scheduled report generation, email service
+  Frontend: Report scheduling UI, email template builder
+  Integration: Email service (SendGrid, AWS SES)
+  Export: PDF/Excel libraries (pdfkit, xlsx)
+
+================================================================================
+END OF FEATURE ROADMAP
+================================================================================
