@@ -103,3 +103,39 @@ export async function fetchDailyTrends(): Promise<DailyTrend[]> {
     if (!res.ok) throw new Error('Failed to fetch daily trends');
     return res.json();
 }
+
+// Financial insights
+export interface FinancialInsights {
+    totals: {
+        totalProducts: number;
+        totalStockValue: number;
+        totalPotentialRevenue: number;
+        totalPotentialProfit: number;
+        averageMargin: string;
+    };
+    topByMargin: {
+        name: string;
+        margin: number;
+        potentialProfit: number;
+    }[];
+    topByProfit: {
+        name: string;
+        margin: number;
+        potentialProfit: number;
+    }[];
+    byCategory: {
+        name: string;
+        revenue: number;
+        profit: number;
+        count: number;
+        margin: string;
+    }[];
+}
+
+export async function fetchFinancialInsights(): Promise<FinancialInsights> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/financial`, {
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch financial insights');
+    return res.json();
+}

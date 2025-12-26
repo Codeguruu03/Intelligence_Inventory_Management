@@ -6,13 +6,15 @@ import {
   fetchRefillDecisions,
   fetchTrends,
   fetchDailyTrends,
+  fetchFinancialInsights,
   addProduct,
   updateStock,
   deleteProduct,
   Product,
   RefillDecision,
   TrendData,
-  DailyTrend
+  DailyTrend,
+  FinancialInsights
 } from '@/lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const [refillDecisions, setRefillDecisions] = useState<RefillDecision[]>([]);
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
+  const [financial, setFinancial] = useState<FinancialInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,8 +96,8 @@ export default function Dashboard() {
   async function load() {
     try {
       setLoading(true);
-      const [p, r, t, d] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends(), fetchDailyTrends()]);
-      setProducts(p); setRefillDecisions(r); setTrends(t); setDailyTrends(d); setError(null);
+      const [p, r, t, d, f] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends(), fetchDailyTrends(), fetchFinancialInsights()]);
+      setProducts(p); setRefillDecisions(r); setTrends(t); setDailyTrends(d); setFinancial(f); setError(null);
     } catch { setError('Unable to connect to server'); }
     finally { setLoading(false); }
   }
@@ -443,6 +446,75 @@ export default function Dashboard() {
             <div><span style={{ color: mutedColor }}>Avg/Day:</span> <strong style={{ color: textColor }}>{dailyTrends.length > 0 ? Math.round(dailyTrends.reduce((s, d) => s + d.totalSold, 0) / dailyTrends.length) : 0} units</strong></div>
           </div>
         </div>
+
+        {/* ═══════════════════ FINANCIAL INSIGHTS ═══════════════════ */}
+        {financial && (
+          <div className="card animate" style={{ background: cardBg, marginTop: '20px' }}>
+            <div className="card-title" style={{ color: textColor, marginBottom: '20px' }}>💰 Financial Insights</div>
+
+            {/* KPI Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: mutedColor, marginBottom: '4px' }}>Stock Value</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#3498db' }}>₹{financial.totals.totalStockValue.toLocaleString('en-IN')}</div>
+              </div>
+              <div style={{ padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: mutedColor, marginBottom: '4px' }}>Potential Revenue</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#27ae60' }}>₹{financial.totals.totalPotentialRevenue.toLocaleString('en-IN')}</div>
+              </div>
+              <div style={{ padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: mutedColor, marginBottom: '4px' }}>Potential Profit</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#9b59b6' }}>₹{financial.totals.totalPotentialProfit.toLocaleString('en-IN')}</div>
+              </div>
+              <div style={{ padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: mutedColor, marginBottom: '4px' }}>Avg Margin</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#e67e22' }}>{financial.totals.averageMargin}%</div>
+              </div>
+            </div>
+
+            {/* Top Products */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: textColor, marginBottom: '12px' }}>🏆 Top by Profit Margin</div>
+                {financial.topByMargin.slice(0, 5).map((p, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${darkMode ? '#3a3d42' : '#f0f0f0'}` }}>
+                    <span style={{ color: textColor, fontSize: '12px' }}>{p.name}</span>
+                    <span style={{ color: '#27ae60', fontWeight: 600, fontSize: '12px' }}>{p.margin}%</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: textColor, marginBottom: '12px' }}>💎 Top by Potential Profit</div>
+                {financial.topByProfit.slice(0, 5).map((p, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${darkMode ? '#3a3d42' : '#f0f0f0'}` }}>
+                    <span style={{ color: textColor, fontSize: '12px' }}>{p.name}</span>
+                    <span style={{ color: '#9b59b6', fontWeight: 600, fontSize: '12px' }}>₹{p.potentialProfit.toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category Breakdown */}
+            <div style={{ marginTop: '24px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: textColor, marginBottom: '12px' }}>📊 Category Profitability</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {financial.byCategory.map((cat, i) => (
+                  <div key={i} style={{
+                    padding: '8px 12px',
+                    background: darkMode ? '#3a3d42' : '#f8f9fa',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '12px', color: textColor }}>{cat.name}</span>
+                    <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: 600 }}>{cat.margin}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════════ SEARCH & FILTER ═══════════════════ */}
         <div className="card animate" style={{ background: cardBg, marginTop: '20px', padding: '16px 20px' }}>
