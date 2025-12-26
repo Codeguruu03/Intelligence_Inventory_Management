@@ -88,3 +88,18 @@ export async function deleteProduct(productId: string): Promise<void> {
     });
     if (!res.ok) throw new Error('Failed to delete product');
 }
+
+// Daily trends for time-series chart
+export interface DailyTrend {
+    _id: string; // date in YYYY-MM-DD format
+    totalSold: number;
+    salesCount: number;
+}
+
+export async function fetchDailyTrends(): Promise<DailyTrend[]> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/daily-trends`, {
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch daily trends');
+    return res.json();
+}

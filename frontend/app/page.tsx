@@ -5,12 +5,14 @@ import {
   fetchProducts,
   fetchRefillDecisions,
   fetchTrends,
+  fetchDailyTrends,
   addProduct,
   updateStock,
   deleteProduct,
   Product,
   RefillDecision,
-  TrendData
+  TrendData,
+  DailyTrend
 } from '@/lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -61,6 +63,7 @@ export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [refillDecisions, setRefillDecisions] = useState<RefillDecision[]>([]);
   const [trends, setTrends] = useState<TrendData[]>([]);
+  const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,8 +93,8 @@ export default function Dashboard() {
   async function load() {
     try {
       setLoading(true);
-      const [p, r, t] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends()]);
-      setProducts(p); setRefillDecisions(r); setTrends(t); setError(null);
+      const [p, r, t, d] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends(), fetchDailyTrends()]);
+      setProducts(p); setRefillDecisions(r); setTrends(t); setDailyTrends(d); setError(null);
     } catch { setError('Unable to connect to server'); }
     finally { setLoading(false); }
   }
@@ -385,6 +388,59 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f1c40f' }}></div><span style={{ color: mutedColor }}>Stop ({stopReorder.length})</span></div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════ 7-DAY SALES TREND ═══════════════════ */}
+        <div className="card animate" style={{ background: cardBg, marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+            <div>
+              <div className="card-title" style={{ color: textColor }}>📈 7-Day Sales Trend</div>
+              <div className="card-subtitle">Daily sales volume over the past week</div>
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#27ae60', whiteSpace: 'nowrap' }}>
+              {dailyTrends.reduce((s, d) => s + d.totalSold, 0)} units
+            </div>
+          </div>
+
+          {dailyTrends.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: mutedColor }}>No sales data available for the past 7 days</div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '140px', paddingTop: '20px' }}>
+              {(() => {
+                const maxSales = Math.max(...dailyTrends.map(d => d.totalSold), 1);
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                return dailyTrends.map((day, i) => {
+                  const height = Math.max(20, (day.totalSold / maxSales) * 80);
+                  const date = new Date(day._id);
+                  const dayName = days[date.getDay()];
+                  const dayNum = date.getDate();
+
+                  return (
+                    <div key={day._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: textColor, marginBottom: '6px' }}>{day.totalSold}</div>
+                      <div style={{
+                        width: '80%',
+                        maxWidth: '45px',
+                        height: `${height}px`,
+                        background: 'linear-gradient(180deg, #3498db 0%, #2980b9 100%)',
+                        borderRadius: '6px 6px 0 0',
+                        transition: 'height 0.3s ease'
+                      }}></div>
+                      <div style={{ fontSize: '11px', color: mutedColor, marginTop: '6px' }}>{dayName}</div>
+                      <div style={{ fontSize: '10px', color: mutedColor }}>{dayNum}</div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', padding: '12px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '8px', fontSize: '13px' }}>
+            <div><span style={{ color: mutedColor }}>Total Sales:</span> <strong style={{ color: textColor }}>{dailyTrends.reduce((s, d) => s + d.totalSold, 0)} units</strong></div>
+            <div><span style={{ color: mutedColor }}>Transactions:</span> <strong style={{ color: textColor }}>{dailyTrends.reduce((s, d) => s + d.salesCount, 0)}</strong></div>
+            <div><span style={{ color: mutedColor }}>Avg/Day:</span> <strong style={{ color: textColor }}>{dailyTrends.length > 0 ? Math.round(dailyTrends.reduce((s, d) => s + d.totalSold, 0) / dailyTrends.length) : 0} units</strong></div>
           </div>
         </div>
 
