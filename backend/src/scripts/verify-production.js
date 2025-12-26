@@ -2,7 +2,13 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const PRODUCTION_MONGO_URI = 'mongodb+srv://namanmaheshgoyal:gfHMW9EnBEaTtnX8@inventoryapi.d4cxnlf.mongodb.net/inventory_db?retryWrites=true&w=majority';
+// Production MongoDB URI - reads from environment variable
+const PRODUCTION_MONGO_URI = process.env.PRODUCTION_MONGO_URI || process.env.MONGO_URI;
+
+if (!PRODUCTION_MONGO_URI) {
+    console.error('❌ Error: PRODUCTION_MONGO_URI or MONGO_URI not set in .env file');
+    process.exit(1);
+}
 
 const saleSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },

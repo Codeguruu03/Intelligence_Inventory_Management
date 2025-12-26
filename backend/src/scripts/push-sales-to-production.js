@@ -5,9 +5,15 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-// Production MongoDB URI (from Render environment)
-const PRODUCTION_MONGO_URI = 'mongodb+srv://namanmaheshgoyal:gfHMW9EnBEaTtnX8@inventoryapi.d4cxnlf.mongodb.net/inventory_db?retryWrites=true&w=majority';
+// Production MongoDB URI - reads from environment variable
+// Set PRODUCTION_MONGO_URI in your .env file
+const PRODUCTION_MONGO_URI = process.env.PRODUCTION_MONGO_URI || process.env.MONGO_URI;
 const PRODUCTION_API = 'https://intelligence-inventory-management.onrender.com';
+
+if (!PRODUCTION_MONGO_URI) {
+    console.error('❌ Error: PRODUCTION_MONGO_URI or MONGO_URI not set in .env file');
+    process.exit(1);
+}
 
 // Sales schema (matches the existing sales.model.js)
 const saleSchema = new mongoose.Schema({
