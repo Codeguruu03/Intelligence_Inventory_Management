@@ -41,20 +41,35 @@ exports.getDailyTrends = async () => {
 
 // Get total daily sales across all products (for overall trend line)
 exports.getTotalDailyTrends = async () => {
-    const last7Days = new Date();
-    last7Days.setDate(last7Days.getDate() - 7);
+    try {
+        const last7Days = new Date();
+        last7Days.setDate(last7Days.getDate() - 7);
 
-    const dailyTotals = await Sale.aggregate([
-        { $match: { soldAt: { $gte: last7Days } } },
-        {
-            $group: {
-                _id: { $dateToString: { format: "%Y-%m-%d", date: "$soldAt" } },
-                totalSold: { $sum: "$quantity" },
-                salesCount: { $sum: 1 }
-            }
-        },
-        { $sort: { _id: 1 } }
-    ]);
+        console.log('[getTotalDailyTrends] Querying sales since:', last7Days.toISOString());
 
-    return dailyTotals;
+        // First check if any sales exist
+        const totalCount = await Sale.countDocuments({});
+        console.log('[getTotalDailyTrends] Total sales in collection:', totalCount);
+
+        const recentCount = await Sale.countDocuments({ soldAt: { $gte: last7Days } });
+        console.log('[getTotalDailyTrends] Sales in last 7 days:', recentCount);
+
+        const dailyTotals = await Sale.aggregate([
+            { $match: { soldAt: { $gte: last7Days } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$soldAt" } },
+                    totalSold: { $sum: "$quantity" },
+                    salesCount: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        console.log('[getTotalDailyTrends] Result:', JSON.stringify(dailyTotals));
+        return dailyTotals;
+    } catch (error) {
+        console.error('[getTotalDailyTrends] Error:', error.message);
+        return [];
+    }
 };
