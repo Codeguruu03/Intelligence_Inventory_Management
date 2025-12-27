@@ -53,3 +53,19 @@ yarn-error.log*
 # TypeScript
 # =====================
 *.tsbuildinfo
+
+# =====================
+# Generated Documentation
+# =====================
+# DOCX files
+*.docx
+
+# PDF files (except SDE assignment)
+Intelligence_Inventory_Management_Solution.pdf
+
+# Generated MD files (keep README.md)
+SOLUTION.md
+SOLUTION_*.md
+explain.md
+why.txt
+improvements.txt
