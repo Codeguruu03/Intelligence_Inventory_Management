@@ -7,6 +7,7 @@ import {
   fetchTrends,
   fetchDailyTrends,
   fetchFinancialInsights,
+  fetchDeadStock,
   addProduct,
   updateStock,
   deleteProduct,
@@ -14,7 +15,8 @@ import {
   RefillDecision,
   TrendData,
   DailyTrend,
-  FinancialInsights
+  FinancialInsights,
+  DeadStockReport
 } from '@/lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -81,6 +83,8 @@ export default function Dashboard() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [showSale, setShowSale] = useState(false);
   const [showReorder, setShowReorder] = useState(false);
+  const [showDeadStock, setShowDeadStock] = useState(false);
+  const [deadStockData, setDeadStockData] = useState<DeadStockReport | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -194,6 +198,16 @@ export default function Dashboard() {
     setSelected(p); setSaleQty(1); setShowSale(true);
   }
 
+  async function handleDeadStock() {
+    try {
+      const data = await fetchDeadStock(30);
+      setDeadStockData(data);
+      setShowDeadStock(true);
+    } catch {
+      alert('Failed to fetch dead stock report');
+    }
+  }
+
   // Export to CSV
   function exportCSV() {
     const headers = ['Name', 'SKU', 'Category', 'Stock', 'Min Stock', 'Cost Price', 'Selling Price', 'Decision'];
@@ -248,6 +262,7 @@ export default function Dashboard() {
               {darkMode ? '☀️' : '🌙'}
             </button>
             <button className="btn btn-light" onClick={exportCSV} title="Export CSV">📥 Export</button>
+            <button className="btn btn-light" onClick={handleDeadStock} title="Dead Stock Report">📦 Dead Stock</button>
             <button className="btn btn-dark" onClick={() => setShowAdd(true)}>+ Add Product</button>
             <button className="btn btn-light" onClick={load}>↻ Refresh</button>
           </div>
@@ -660,6 +675,65 @@ export default function Dashboard() {
                 <div style={{ marginTop: '10px', padding: '10px', background: 'white', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: mutedColor }}>Suggested Order:</span>
                   <strong style={{ color: '#e74c3c', fontSize: '18px' }}>{item.suggestedQty} units</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* Dead Stock Report */}
+      <Modal isOpen={showDeadStock} onClose={() => setShowDeadStock(false)} title="📦 Dead Stock Report">
+        <p style={{ color: mutedColor, marginBottom: '16px', fontSize: '13px' }}>
+          Products with no sales in the last {deadStockData?.daysThreshold || 30} days
+        </p>
+
+        {/* Summary Stats */}
+        {deadStockData && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ padding: '12px', background: darkMode ? '#3a3d42' : '#fdf2f2', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: mutedColor }}>Products</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#e74c3c' }}>{deadStockData.totalProducts}</div>
+            </div>
+            <div style={{ padding: '12px', background: darkMode ? '#3a3d42' : '#fdf2f2', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: mutedColor }}>Capital at Risk</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#e74c3c' }}>₹{deadStockData.totalDeadStockValue.toLocaleString('en-IN')}</div>
+            </div>
+            <div style={{ padding: '12px', background: darkMode ? '#3a3d42' : '#fdf2f2', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: mutedColor }}>Unsold Units</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#e74c3c' }}>{deadStockData.totalDeadStockUnits.toLocaleString()}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Product List */}
+        {(!deadStockData || deadStockData.products.length === 0) ? (
+          <p style={{ textAlign: 'center', color: '#27ae60', padding: '20px' }}>✓ No dead stock detected</p>
+        ) : (
+          <div style={{ maxHeight: '350px', overflow: 'auto' }}>
+            {deadStockData.products.map((item) => (
+              <div key={item._id} style={{
+                padding: '12px',
+                background: darkMode ? '#3a3d42' : '#fef9e7',
+                borderRadius: '8px',
+                marginBottom: '10px',
+                borderLeft: '4px solid #e74c3c'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ color: textColor }}>{item.name}</strong>
+                  <span style={{
+                    background: '#e74c3c',
+                    color: 'white',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '10px',
+                    fontWeight: 600
+                  }}>No Sales</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px' }}>
+                  <div><span style={{ color: mutedColor }}>Stock:</span> <strong>{item.stockQuantity}</strong></div>
+                  <div><span style={{ color: mutedColor }}>Category:</span> <strong>{item.category}</strong></div>
+                  <div><span style={{ color: mutedColor }}>Value:</span> <strong style={{ color: '#e74c3c' }}>₹{item.stockValue.toLocaleString('en-IN')}</strong></div>
                 </div>
               </div>
             ))}

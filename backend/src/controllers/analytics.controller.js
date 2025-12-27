@@ -1,5 +1,6 @@
 const { getWeeklyTrends, getTotalDailyTrends } = require("../services/trend.service");
 const { getFinancialInsights } = require("../services/financial.service");
+const { getDeadStock } = require("../services/deadstock.service");
 
 // Get weekly trends (total sold per product)
 exports.getTrends = async (req, res) => {
@@ -17,4 +18,11 @@ exports.getDailyTrends = async (req, res) => {
 exports.getFinancialInsights = async (req, res) => {
     const insights = await getFinancialInsights();
     res.json(insights);
+};
+
+// Get dead stock report
+exports.getDeadStock = async (req, res) => {
+    const days = parseInt(req.query.days) || 30;
+    const deadStock = await getDeadStock(days);
+    res.json(deadStock);
 };

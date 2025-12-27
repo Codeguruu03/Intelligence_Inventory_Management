@@ -139,3 +139,33 @@ export async function fetchFinancialInsights(): Promise<FinancialInsights> {
     if (!res.ok) throw new Error('Failed to fetch financial insights');
     return res.json();
 }
+
+// Dead stock report
+export interface DeadStockProduct {
+    _id: string;
+    name: string;
+    sku: string;
+    category: string;
+    stockQuantity: number;
+    costPrice: number;
+    sellingPrice: number;
+    stockValue: number;
+    potentialLoss: number;
+    daysWithoutSale: number;
+}
+
+export interface DeadStockReport {
+    daysThreshold: number;
+    totalProducts: number;
+    totalDeadStockValue: number;
+    totalDeadStockUnits: number;
+    products: DeadStockProduct[];
+}
+
+export async function fetchDeadStock(days: number = 30): Promise<DeadStockReport> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/dead-stock?days=${days}`, {
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch dead stock report');
+    return res.json();
+}
