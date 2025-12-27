@@ -61,6 +61,33 @@ function Select({ label, options, ...props }: { label: string; options: { value:
   );
 }
 
+// Info tooltip component for card explanations - positioned top-right
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span
+      title={text}
+      style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        cursor: 'help',
+        fontSize: '12px',
+        opacity: 0.7,
+        zIndex: 1,
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        background: 'rgba(0,0,0,0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      ℹ️
+    </span>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
@@ -284,7 +311,8 @@ export default function Dashboard() {
         {/* ═══════════════════ TOP GRID ═══════════════════ */}
         <div className="grid-top">
           {/* Left: Actions */}
-          <div className="card animate" style={{ background: cardBg }}>
+          <div className="card animate" style={{ background: cardBg, position: 'relative' }}>
+            <InfoTooltip text="Products that need immediate attention - Refill (red), OK (green), or Stop ordering (yellow)" />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '18px' }}>
               <div>
                 <div className="card-title" style={{ color: textColor }}>Today's Inventory Actions</div>
@@ -332,17 +360,20 @@ export default function Dashboard() {
 
           {/* Right: Stats stacked */}
           <div className="grid-right">
-            <div className="card card-sm animate" style={{ background: cardBg }}>
+            <div className="card card-sm animate" style={{ background: cardBg, position: 'relative' }}>
+              <InfoTooltip text="Total value of all stock at cost price" />
               <div className="card-title" style={{ color: textColor }}>Inventory Value</div>
               <div className="big-number" style={{ marginTop: '8px', color: textColor }}>₹{totalValue.toLocaleString('en-IN')}</div>
               <div className="number-label">{products.length} products total</div>
             </div>
-            <div className="card card-sm animate" style={{ background: cardBg }}>
+            <div className="card card-sm animate" style={{ background: cardBg, position: 'relative' }}>
+              <InfoTooltip text="Value of low-selling stock that may become dead stock" />
               <div className="card-title" style={{ color: textColor }}>Capital at Risk</div>
               <div className="big-number yellow" style={{ marginTop: '8px' }}>₹{atRisk.toLocaleString('en-IN')}</div>
               <div className="number-label">{stopReorder.length} slow-moving items</div>
             </div>
-            <div className="card card-sm animate" style={{ background: cardBg }}>
+            <div className="card card-sm animate" style={{ background: cardBg, position: 'relative' }}>
+              <InfoTooltip text="How many times inventory is sold and replaced per month" />
               <div className="card-title" style={{ color: textColor }}>Inventory Turnover</div>
               <div className="big-number" style={{ marginTop: '8px', color: '#27ae60' }}>{turnoverRate}x</div>
               <div className="number-label">Monthly rate</div>
@@ -353,7 +384,8 @@ export default function Dashboard() {
         {/* ═══════════════════ ANALYTICS SECTION ═══════════════════ */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '20px' }}>
           {/* Bar Chart */}
-          <div className="card animate" style={{ background: cardBg }}>
+          <div className="card animate" style={{ background: cardBg, position: 'relative' }}>
+            <InfoTooltip text="Visual breakdown of products by decision status" />
             <div className="card-title" style={{ color: textColor, marginBottom: '16px' }}>Inventory Health</div>
             {(() => {
               const maxCount = Math.max(refillNow.length, holdItems.length, stopReorder.length, 1);
@@ -379,7 +411,8 @@ export default function Dashboard() {
           </div>
 
           {/* Category Breakdown */}
-          <div className="card animate" style={{ background: cardBg }}>
+          <div className="card animate" style={{ background: cardBg, position: 'relative' }}>
+            <InfoTooltip text="Number of products in each category" />
             <div className="card-title" style={{ color: textColor, marginBottom: '16px' }}>Category Breakdown</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {categoryBreakdown.slice(0, 6).map((cat, i) => {
@@ -396,7 +429,8 @@ export default function Dashboard() {
           </div>
 
           {/* Donut Chart */}
-          <div className="card animate" style={{ background: cardBg }}>
+          <div className="card animate" style={{ background: cardBg, position: 'relative' }}>
+            <InfoTooltip text="Percentage of products by refill decision status" />
             <div className="card-title" style={{ color: textColor, marginBottom: '16px' }}>Distribution</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
               <div className="donut-chart" style={{
@@ -421,7 +455,8 @@ export default function Dashboard() {
         </div>
 
         {/* ═══════════════════ 7-DAY SALES TREND ═══════════════════ */}
-        <div className="card animate" style={{ background: cardBg, marginTop: '20px' }}>
+        <div className="card animate" style={{ background: cardBg, marginTop: '20px', position: 'relative' }}>
+          <InfoTooltip text="Daily sales volume over the last 7 days" />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
             <div>
               <div className="card-title" style={{ color: textColor }}>📈 7-Day Sales Trend</div>
@@ -475,7 +510,8 @@ export default function Dashboard() {
 
         {/* ═══════════════════ FINANCIAL INSIGHTS ═══════════════════ */}
         {financial && (
-          <div className="card animate" style={{ background: cardBg, marginTop: '20px' }}>
+          <div className="card animate" style={{ background: cardBg, marginTop: '20px', position: 'relative' }}>
+            <InfoTooltip text="Profit margins, top performers, and category profitability" />
             <div className="card-title" style={{ color: textColor, marginBottom: '20px' }}>💰 Financial Insights</div>
 
             {/* KPI Row */}
@@ -567,7 +603,8 @@ export default function Dashboard() {
         </div>
 
         {/* ═══════════════════ TABLE ═══════════════════ */}
-        <div className="card animate" style={{ padding: 0, marginTop: '20px', background: cardBg }}>
+        <div className="card animate" style={{ padding: 0, marginTop: '20px', background: cardBg, position: 'relative' }}>
+          <InfoTooltip text="Complete inventory list with stock levels, days left, and actions" />
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #e9e8e4' }}>
             <div className="card-title" style={{ color: textColor }}>All Products</div>
             <div className="card-subtitle">{filteredDecisions.length} items</div>

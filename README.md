@@ -243,6 +243,7 @@ The seed script creates **65 products** across **9 categories**:
 - **No Sidebar**: Clean, focused single-page layout
 - **Pure CSS Charts**: Zero external chart library dependencies
 - **Modal-Based UX**: Dead Stock report as on-demand modal
+- **Info Tooltips**: ℹ️ icons on each card explain their purpose on hover
 
 ---
 
