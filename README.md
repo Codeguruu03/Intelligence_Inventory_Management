@@ -3,7 +3,10 @@
 > **Decision-First Inventory Management System**  
 > An AI-powered system that tells you *what to do*, not just *what the data says*.
 
-![Dashboard Screenshot](frontend/public/screenshot.png)
+## 🔗 Live Demo
+
+- **Frontend**: [https://intelligence-inventory-management.vercel.app/](https://intelligence-inventory-management.vercel.app/)
+- **Backend API**: [https://intelligence-inventory-management.onrender.com/](https://intelligence-inventory-management.onrender.com/)
 
 ---
 
@@ -32,19 +35,22 @@ Inventory Intelligence is a modern inventory management system designed for **In
 | 📥 **Export CSV** | Download inventory report |
 | 🌙 **Dark Mode** | Toggle light/dark themes |
 
-### Analytics & Insights
+### Advanced Analytics
 | Feature | Description |
 |---------|-------------|
-| 📊 **Health Bar Chart** | Visual breakdown of refill/healthy/stop items |
+| � **7-Day Sales Trend** | Time-series chart showing daily sales volume |
+| 💰 **Financial Dashboard** | Profit margins, ROI, and category breakdown |
+| 📦 **Dead Stock Report** | Products with no sales (30 days) - capital at risk |
+| ⏰ **Stock-Out Prediction** | Days until stockout for each product |
+| � **Health Bar Chart** | Visual breakdown of refill/healthy/stop items |
 | 🏷️ **Category Breakdown** | Distribution across product categories |
-| 🍩 **Donut Chart** | Inventory status distribution |
-| 📈 **Turnover Rate** | Monthly inventory turnover calculation |
 
-### Alerts & Notifications
+### Alerts & Insights
 | Feature | Description |
 |---------|-------------|
 | ⚠️ **Low Stock Alert** | Red banner when items need refill |
 | 📦 **Reorder Suggestions** | AI-calculated order quantities (14-day supply) |
+| 🔴 **Days Left Badges** | Color-coded stockout urgency indicators |
 
 ---
 
@@ -55,12 +61,14 @@ Inventory Intelligence is a modern inventory management system designed for **In
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose
 - **Architecture**: MVC with Service Layer
+- **Hosting**: Render
 
 ### Frontend
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Styling**: TailwindCSS + Custom CSS
 - **Charts**: Pure CSS (zero dependencies)
+- **Hosting**: Vercel
 
 ---
 
@@ -72,9 +80,14 @@ inventory-intelligence/
 │   ├── src/
 │   │   ├── config/          # Database config
 │   │   ├── controllers/     # Request handlers
-│   │   ├── models/          # Mongoose schemas
+│   │   ├── models/          # Mongoose schemas (Product, Sale)
 │   │   ├── routes/          # API routes
 │   │   ├── services/        # Business logic
+│   │   │   ├── refill.service.js
+│   │   │   ├── trend.service.js
+│   │   │   ├── financial.service.js
+│   │   │   ├── deadstock.service.js
+│   │   │   └── stockout.service.js
 │   │   └── scripts/         # Seed data (65 products)
 │   └── package.json
 │
@@ -99,15 +112,15 @@ inventory-intelligence/
 
 ### 1. Clone & Setup Backend
 ```bash
-git clone <repository-url>
-cd inventory-intelligence/backend
+git clone https://github.com/Codeguruu03/Intelligence_Inventory_Management.git
+cd Intelligence_Inventory_Management/backend
 npm install
 
 # Create .env file
 echo "PORT=5000" > .env
 echo "MONGO_URI=mongodb://localhost:27017/inventory_db" >> .env
 
-# Seed 65 sample products
+# Seed 65 sample products + sales data
 npm run seed
 
 # Start server
@@ -128,14 +141,61 @@ Navigate to **http://localhost:3000**
 
 ## 🔌 API Endpoints
 
+### Inventory
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/inventory` | Get all products |
 | `POST` | `/api/inventory` | Add new product |
 | `PATCH` | `/api/inventory/:id/stock` | Update stock |
 | `DELETE` | `/api/inventory/:id` | Delete product |
-| `GET` | `/api/refill` | Get refill decisions |
-| `GET` | `/api/analytics/trends` | Get demand trends |
+
+### Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/refill` | Get refill decisions for all products |
+| `GET` | `/api/analytics/trends` | Get weekly demand trends |
+| `GET` | `/api/analytics/daily-trends` | Get 7-day sales data (for chart) |
+| `GET` | `/api/analytics/financial` | Get profit margins & category breakdown |
+| `GET` | `/api/analytics/dead-stock?days=30` | Get products with no sales |
+| `GET` | `/api/analytics/stockout` | Get days-until-stockout predictions |
+
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/admin/seed-sales` | Seed sample sales data |
+| `DELETE` | `/api/admin/clear-sales` | Clear all sales data |
+
+---
+
+## 📊 Analytics Deep Dive
+
+### 1. Financial Dashboard
+```json
+{
+  "totals": {
+    "totalProducts": 66,
+    "totalStockValue": 2058290,
+    "totalPotentialRevenue": 2604460,
+    "totalPotentialProfit": 546170,
+    "averageMargin": "24.0"
+  },
+  "topByMargin": [...],
+  "topByProfit": [...],
+  "byCategory": [...]
+}
+```
+
+### 2. Stock-Out Prediction
+| Status | Days Left | Action |
+|--------|-----------|--------|
+| 🔴 Critical | ≤3 days | Order immediately |
+| 🟠 Warning | ≤7 days | Plan reorder |
+| 🟡 Attention | ≤14 days | Monitor closely |
+| 🟢 Safe | >14 days | No action needed |
+| ⚪ N/A | No sales | Check demand |
+
+### 3. Dead Stock Report
+Products with **zero sales** in the last 30 days, sorted by capital at risk.
 
 ---
 
@@ -157,7 +217,7 @@ ELSE
 
 ---
 
-## � Sample Data
+## 📦 Sample Data
 
 The seed script creates **65 products** across **9 categories**:
 
@@ -182,6 +242,7 @@ The seed script creates **65 products** across **9 categories**:
 - **Dark Mode**: Easy on the eyes for extended use
 - **No Sidebar**: Clean, focused single-page layout
 - **Pure CSS Charts**: Zero external chart library dependencies
+- **Modal-Based UX**: Dead Stock report as on-demand modal
 
 ---
 
@@ -203,6 +264,8 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 ## 👨‍💻 Author
 
 Built for **SDE Internship Assignment** — Demonstrating full-stack development with focus on practical business solutions and modern UI/UX.
+
+**GitHub**: [Codeguruu03](https://github.com/Codeguruu03)
 
 ---
 
