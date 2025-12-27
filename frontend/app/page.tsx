@@ -26,13 +26,13 @@ import {
 // COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+function Modal({ isOpen, onClose, title, children, dark = false }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; dark?: boolean }) {
   if (!isOpen) return null;
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
-      <div className="card animate" style={{ maxWidth: '480px', width: '90%', maxHeight: '90vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', position: 'sticky', top: 0, background: 'white', padding: '4px 0' }}>
-          <span style={{ fontSize: '16px', fontWeight: 600 }}>{title}</span>
+      <div className="card animate" style={{ maxWidth: '480px', width: '90%', maxHeight: '90vh', overflow: 'auto', background: dark ? '#2a2d32' : 'white', color: dark ? '#e9e9e9' : '#1a1a1a' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', position: 'sticky', top: 0, background: dark ? '#2a2d32' : 'white', padding: '4px 0' }}>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: dark ? '#e9e9e9' : '#1a1a1a' }}>{title}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}>×</button>
         </div>
         {children}
@@ -41,20 +41,20 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose:
   );
 }
 
-function Input({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({ label, dark = false, ...props }: { label: string; dark?: boolean } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div style={{ marginBottom: '14px' }}>
-      <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
-      <input {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px' }} />
+      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#999' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
+      <input {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid', borderColor: dark ? '#444' : '#e9e8e4', borderRadius: '8px', fontSize: '13px', background: dark ? '#3a3d42' : 'white', color: dark ? '#e9e9e9' : '#1a1a1a' }} />
     </div>
   );
 }
 
-function Select({ label, options, ...props }: { label: string; options: { value: string; label: string }[] } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+function Select({ label, options, dark = false, ...props }: { label: string; options: { value: string; label: string }[]; dark?: boolean } & React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div style={{ marginBottom: '14px' }}>
-      <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
-      <select {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: 'white' }}>
+      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#999' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
+      <select {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid', borderColor: dark ? '#444' : '#e9e8e4', borderRadius: '8px', fontSize: '13px', background: dark ? '#3a3d42' : 'white', color: dark ? '#e9e9e9' : '#1a1a1a' }}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -927,38 +927,38 @@ export default function Dashboard() {
       {/* ═══════════════════ MODALS ═══════════════════ */}
 
       {/* Add Product */}
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add New Product">
+      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add New Product" dark={darkMode}>
         <form onSubmit={handleAdd}>
-          <Input label="Product Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g., Portland Cement 50kg" />
-          <Input label="SKU" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required placeholder="e.g., CEM-001" />
-          <Input label="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g., Cement" />
+          <Input label="Product Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g., Portland Cement 50kg" dark={darkMode} />
+          <Input label="SKU" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required placeholder="e.g., CEM-001" dark={darkMode} />
+          <Input label="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g., Cement" dark={darkMode} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <Input label="Stock Qty" type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: +e.target.value })} min={0} />
-            <Input label="Min Stock" type="number" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: +e.target.value })} min={1} />
+            <Input label="Stock Qty" type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: +e.target.value })} min={0} dark={darkMode} />
+            <Input label="Min Stock" type="number" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: +e.target.value })} min={1} dark={darkMode} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <Input label="Cost (₹)" type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: +e.target.value })} min={0} />
-            <Input label="Sell (₹)" type="number" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: +e.target.value })} min={0} />
+            <Input label="Cost (₹)" type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: +e.target.value })} min={0} dark={darkMode} />
+            <Input label="Sell (₹)" type="number" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: +e.target.value })} min={0} dark={darkMode} />
           </div>
           <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '14px' }} disabled={formLoading}>{formLoading ? 'Adding...' : 'Add Product'}</button>
         </form>
       </Modal>
 
       {/* Update Stock */}
-      <Modal isOpen={showUpdate} onClose={() => setShowUpdate(false)} title="Update Stock">
+      <Modal isOpen={showUpdate} onClose={() => setShowUpdate(false)} title="Update Stock" dark={darkMode}>
         <form onSubmit={handleUpdate}>
           <p style={{ color: mutedColor, marginBottom: '14px' }}>Updating: <strong style={{ color: textColor }}>{selected?.name}</strong></p>
-          <Input label="New Stock Quantity" type="number" value={newQty} onChange={(e) => setNewQty(+e.target.value)} min={0} autoFocus />
+          <Input label="New Stock Quantity" type="number" value={newQty} onChange={(e) => setNewQty(+e.target.value)} min={0} autoFocus dark={darkMode} />
           <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '14px' }} disabled={formLoading}>{formLoading ? 'Updating...' : 'Update Stock'}</button>
         </form>
       </Modal>
 
       {/* Record Sale */}
-      <Modal isOpen={showSale} onClose={() => setShowSale(false)} title="Record Sale">
+      <Modal isOpen={showSale} onClose={() => setShowSale(false)} title="Record Sale" dark={darkMode}>
         <form onSubmit={handleRecordSale}>
           <p style={{ color: mutedColor, marginBottom: '14px' }}>Product: <strong style={{ color: textColor }}>{selected?.name}</strong></p>
           <p style={{ color: mutedColor, marginBottom: '14px', fontSize: '13px' }}>Current Stock: {selected?.stockQuantity}</p>
-          <Input label="Quantity Sold" type="number" value={saleQty} onChange={(e) => setSaleQty(+e.target.value)} min={1} max={selected?.stockQuantity} autoFocus />
+          <Input label="Quantity Sold" type="number" value={saleQty} onChange={(e) => setSaleQty(+e.target.value)} min={1} max={selected?.stockQuantity} autoFocus dark={darkMode} />
           <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '14px' }} disabled={formLoading || saleQty > (selected?.stockQuantity || 0)}>
             {formLoading ? 'Recording...' : `Record Sale (New Stock: ${(selected?.stockQuantity || 0) - saleQty})`}
           </button>
@@ -966,7 +966,7 @@ export default function Dashboard() {
       </Modal>
 
       {/* Reorder Suggestions */}
-      <Modal isOpen={showReorder} onClose={() => setShowReorder(false)} title="📦 Reorder Suggestions">
+      <Modal isOpen={showReorder} onClose={() => setShowReorder(false)} title="📦 Reorder Suggestions" dark={darkMode}>
         <p style={{ color: mutedColor, marginBottom: '16px', fontSize: '13px' }}>Based on 14-day demand forecast</p>
         {reorderSuggestions.length === 0 ? (
           <p style={{ textAlign: 'center', color: '#27ae60', padding: '20px' }}>✓ No reorders needed</p>
@@ -994,7 +994,7 @@ export default function Dashboard() {
       </Modal>
 
       {/* Dead Stock Report */}
-      <Modal isOpen={showDeadStock} onClose={() => setShowDeadStock(false)} title="📦 Dead Stock Report">
+      <Modal isOpen={showDeadStock} onClose={() => setShowDeadStock(false)} title="📦 Dead Stock Report" dark={darkMode}>
         <p style={{ color: mutedColor, marginBottom: '16px', fontSize: '13px' }}>
           Products with no sales in the last {deadStockData?.daysThreshold || 30} days
         </p>
@@ -1053,7 +1053,7 @@ export default function Dashboard() {
       </Modal>
 
       {/* Product Details */}
-      <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`📦 ${selected?.name || 'Product Details'}`}>
+      <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`📦 ${selected?.name || 'Product Details'}`} dark={darkMode}>
         {selected && (() => {
           const pred = stockout?.predictions.find(s => s._id === selected._id);
           const margin = ((selected.sellingPrice - selected.costPrice) / selected.sellingPrice * 100).toFixed(1);
