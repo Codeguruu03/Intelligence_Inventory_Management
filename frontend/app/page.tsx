@@ -108,6 +108,10 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [decisionFilter, setDecisionFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'stock' | 'daysLeft' | 'decision'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Modal State
   const [showAdd, setShowAdd] = useState(false);
@@ -115,6 +119,7 @@ export default function Dashboard() {
   const [showSale, setShowSale] = useState(false);
   const [showReorder, setShowReorder] = useState(false);
   const [showDeadStock, setShowDeadStock] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [deadStockData, setDeadStockData] = useState<DeadStockReport | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [formLoading, setFormLoading] = useState(false);
@@ -184,6 +189,46 @@ export default function Dashboard() {
     });
   }, [refillDecisions, products, searchTerm, categoryFilter, decisionFilter]);
 
+  // Sorted decisions
+  const sortedDecisions = useMemo(() => {
+    const sorted = [...filteredDecisions].sort((a, b) => {
+      const pA = products.find(x => x._id === a.productId);
+      const pB = products.find(x => x._id === b.productId);
+      const predA = stockout?.predictions.find(s => s._id === a.productId);
+      const predB = stockout?.predictions.find(s => s._id === b.productId);
+
+      let cmp = 0;
+      switch (sortBy) {
+        case 'name': cmp = a.name.localeCompare(b.name); break;
+        case 'category': cmp = (pA?.category || '').localeCompare(pB?.category || ''); break;
+        case 'stock': cmp = (pA?.stockQuantity || 0) - (pB?.stockQuantity || 0); break;
+        case 'daysLeft': cmp = (predA?.daysUntilStockout || 999) - (predB?.daysUntilStockout || 999); break;
+        case 'decision': cmp = a.decision.decision.localeCompare(b.decision.decision); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredDecisions, products, stockout, sortBy, sortDir]);
+
+  // Paginated decisions
+  const paginatedDecisions = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedDecisions.slice(start, start + itemsPerPage);
+  }, [sortedDecisions, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedDecisions.length / itemsPerPage);
+
+  // Handle sort click
+  function handleSort(column: typeof sortBy) {
+    if (sortBy === column) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+    setCurrentPage(1);
+  }
+
   // Reorder suggestions (items needing refill with suggested quantities)
   const reorderSuggestions = useMemo(() => {
     return refillNow.map(item => {
@@ -236,6 +281,10 @@ export default function Dashboard() {
     setSelected(p); setSaleQty(1); setShowSale(true);
   }
 
+  function openDetailsModal(p: Product) {
+    setSelected(p); setShowDetails(true);
+  }
+
   async function handleDeadStock() {
     try {
       const data = await fetchDeadStock(30);
@@ -257,6 +306,84 @@ export default function Dashboard() {
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+  }
+
+  // Print Report
+  function printReport() {
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Inventory Report - ${new Date().toLocaleDateString()}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; }
+          h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+          .summary { display: flex; gap: 20px; margin: 20px 0; }
+          .stat { background: #f8f9fa; padding: 15px 25px; border-radius: 8px; text-align: center; }
+          .stat-value { font-size: 24px; font-weight: bold; color: #3498db; }
+          .stat-label { font-size: 12px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 12px; }
+          th { background: #3498db; color: white; }
+          tr:nth-child(even) { background: #f8f9fa; }
+          .refill { color: #e74c3c; font-weight: bold; }
+          .hold { color: #27ae60; }
+          .stop { color: #f39c12; }
+          .footer { margin-top: 30px; font-size: 11px; color: #999; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <h1>📦 Inventory Intelligence Report</h1>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+        
+        <div class="summary">
+          <div class="stat"><div class="stat-value">${products.length}</div><div class="stat-label">Total Products</div></div>
+          <div class="stat"><div class="stat-value">₹${totalValue.toLocaleString('en-IN')}</div><div class="stat-label">Total Value</div></div>
+          <div class="stat"><div class="stat-value" style="color:#e74c3c">${refillNow.length}</div><div class="stat-label">Need Refill</div></div>
+          <div class="stat"><div class="stat-value" style="color:#27ae60">${holdItems.length}</div><div class="stat-label">Healthy</div></div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>Category</th>
+              <th>Stock</th>
+              <th>Min</th>
+              <th>Cost</th>
+              <th>Selling</th>
+              <th>Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedDecisions.map(item => {
+      const p = products.find(x => x._id === item.productId);
+      const cls = item.decision.decision === 'REFILL_NOW' ? 'refill' : item.decision.decision === 'HOLD' ? 'hold' : 'stop';
+      return `<tr>
+                <td>${item.name}</td>
+                <td>${p?.sku || ''}</td>
+                <td>${p?.category || ''}</td>
+                <td>${p?.stockQuantity || 0}</td>
+                <td>${p?.minStockLevel || 0}</td>
+                <td>₹${(p?.costPrice || 0).toLocaleString('en-IN')}</td>
+                <td>₹${(p?.sellingPrice || 0).toLocaleString('en-IN')}</td>
+                <td class="${cls}">${item.decision.decision.replace('_', ' ')}</td>
+              </tr>`;
+    }).join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">Inventory Intelligence Dashboard</div>
+      </body>
+      </html>
+    `;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(reportHtml);
+      win.document.close();
+      win.print();
+    }
   }
 
   const lvl = (c: number, m: number) => { const p = (c / m) * 100; return p < 50 ? 'red' : p < 100 ? 'yellow' : 'green'; };
@@ -300,6 +427,7 @@ export default function Dashboard() {
               {darkMode ? '☀️' : '🌙'}
             </button>
             <button className="btn btn-light" onClick={exportCSV} title="Export CSV">📥 Export</button>
+            <button className="btn btn-light" onClick={printReport} title="Print Report">🖨️ Print</button>
             <button className="btn btn-light" onClick={handleDeadStock} title="Dead Stock Report">📦 Dead Stock</button>
             <button className="btn btn-dark" onClick={() => setShowAdd(true)}>+ Add Product</button>
             <button className="btn btn-light" onClick={load}>↻ Refresh</button>
@@ -588,11 +716,11 @@ export default function Dashboard() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ flex: 1, minWidth: '200px', padding: '10px 14px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: darkMode ? '#3a3d42' : 'white', color: textColor }}
             />
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ padding: '10px 14px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: darkMode ? '#3a3d42' : 'white', color: textColor }}>
+            <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }} style={{ padding: '10px 14px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: darkMode ? '#3a3d42' : 'white', color: textColor }}>
               <option value="all">All Categories</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select value={decisionFilter} onChange={(e) => setDecisionFilter(e.target.value)} style={{ padding: '10px 14px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: darkMode ? '#3a3d42' : 'white', color: textColor }}>
+            <select value={decisionFilter} onChange={(e) => { setDecisionFilter(e.target.value); setCurrentPage(1); }} style={{ padding: '10px 14px', border: '1px solid #e9e8e4', borderRadius: '8px', fontSize: '13px', background: darkMode ? '#3a3d42' : 'white', color: textColor }}>
               <option value="all">All Decisions</option>
               <option value="REFILL_NOW">Refill Now</option>
               <option value="HOLD">Healthy</option>
@@ -600,6 +728,48 @@ export default function Dashboard() {
             </select>
             <span style={{ color: mutedColor, fontSize: '13px' }}>{filteredDecisions.length} of {refillDecisions.length} products</span>
           </div>
+          {/* Active Filter Chips */}
+          {(categoryFilter !== 'all' || decisionFilter !== 'all' || searchTerm) && (
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+              {categoryFilter !== 'all' && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  background: '#3498db20', color: '#3498db', padding: '4px 12px',
+                  borderRadius: '16px', fontSize: '12px', fontWeight: 500
+                }}>
+                  📁 {categoryFilter}
+                  <button onClick={() => setCategoryFilter('all')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#3498db', fontSize: '14px' }}>×</button>
+                </span>
+              )}
+              {decisionFilter !== 'all' && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  background: decisionFilter === 'REFILL_NOW' ? '#e74c3c20' : decisionFilter === 'HOLD' ? '#27ae6020' : '#f39c1220',
+                  color: decisionFilter === 'REFILL_NOW' ? '#e74c3c' : decisionFilter === 'HOLD' ? '#27ae60' : '#f39c12',
+                  padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 500
+                }}>
+                  🎯 {decisionFilter.replace('_', ' ')}
+                  <button onClick={() => setDecisionFilter('all')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: 'inherit', fontSize: '14px' }}>×</button>
+                </span>
+              )}
+              {searchTerm && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  background: '#9b59b620', color: '#9b59b6', padding: '4px 12px',
+                  borderRadius: '16px', fontSize: '12px', fontWeight: 500
+                }}>
+                  🔍 "{searchTerm}"
+                  <button onClick={() => setSearchTerm('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#9b59b6', fontSize: '14px' }}>×</button>
+                </span>
+              )}
+              <button
+                onClick={() => { setCategoryFilter('all'); setDecisionFilter('all'); setSearchTerm(''); }}
+                style={{ background: 'none', border: 'none', color: mutedColor, fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ═══════════════════ TABLE ═══════════════════ */}
@@ -607,29 +777,44 @@ export default function Dashboard() {
           <InfoTooltip text="Complete inventory list with stock levels, days left, and actions" />
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #e9e8e4' }}>
             <div className="card-title" style={{ color: textColor }}>All Products</div>
-            <div className="card-subtitle">{filteredDecisions.length} items</div>
+            <div className="card-subtitle">{sortedDecisions.length} items • Page {currentPage} of {totalPages || 1}</div>
           </div>
 
           <table className="table">
             <thead>
               <tr>
-                <th style={{ color: mutedColor }}>Product</th>
-                <th style={{ color: mutedColor }}>Category</th>
-                <th style={{ color: mutedColor }}>Stock</th>
-                <th style={{ color: mutedColor }}>Days Left</th>
-                <th style={{ color: mutedColor }}>Decision</th>
+                <th onClick={() => handleSort('name')} style={{ color: mutedColor, cursor: 'pointer' }}>
+                  Product {sortBy === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('category')} style={{ color: mutedColor, cursor: 'pointer' }}>
+                  Category {sortBy === 'category' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('stock')} style={{ color: mutedColor, cursor: 'pointer' }}>
+                  Stock {sortBy === 'stock' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('daysLeft')} style={{ color: mutedColor, cursor: 'pointer' }}>
+                  Days Left {sortBy === 'daysLeft' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('decision')} style={{ color: mutedColor, cursor: 'pointer' }}>
+                  Decision {sortBy === 'decision' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
                 <th style={{ color: mutedColor }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredDecisions.slice(0, 20).map(item => {
+              {paginatedDecisions.map(item => {
                 const p = products.find(x => x._id === item.productId);
                 const level = p ? lvl(p.stockQuantity, p.minStockLevel) : 'green';
                 const pct = p ? Math.min(100, (p.stockQuantity / p.minStockLevel) * 100) : 0;
                 return (
                   <tr key={item.productId} style={{ background: darkMode ? '#2a2d32' : 'white' }}>
                     <td>
-                      <span style={{ fontWeight: 500, color: textColor }}>{item.name}</span>
+                      <span
+                        onClick={() => p && openDetailsModal(p)}
+                        style={{ fontWeight: 500, color: textColor, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                      >
+                        {item.name}
+                      </span>
                       <br /><span className="font-mono" style={{ color: mutedColor, fontSize: '11px' }}>{p?.sku}</span>
                     </td>
                     <td><span style={{ color: mutedColor }}>{p?.category}</span></td>
@@ -688,9 +873,52 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
-          {filteredDecisions.length > 20 && (
-            <div style={{ padding: '16px', textAlign: 'center', color: mutedColor, fontSize: '13px' }}>
-              Showing 20 of {filteredDecisions.length} products. Use search/filter to narrow down.
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', borderTop: '1px solid #e9e8e4' }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-light btn-sm"
+                style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
+              >
+                ← Previous
+              </button>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page = i + 1;
+                  if (totalPages > 5) {
+                    if (currentPage <= 3) page = i + 1;
+                    else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+                    else page = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: currentPage === page ? '#3498db' : (darkMode ? '#3a3d42' : '#f5f5f5'),
+                        color: currentPage === page ? 'white' : textColor,
+                        cursor: 'pointer',
+                        fontWeight: currentPage === page ? 600 : 400
+                      }}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-light btn-sm"
+                style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>
@@ -822,6 +1050,54 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* Product Details */}
+      <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`📦 ${selected?.name || 'Product Details'}`}>
+        {selected && (() => {
+          const pred = stockout?.predictions.find(s => s._id === selected._id);
+          const margin = ((selected.sellingPrice - selected.costPrice) / selected.sellingPrice * 100).toFixed(1);
+          const profit = selected.sellingPrice - selected.costPrice;
+          return (
+            <div>
+              {/* Quick Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center', padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#3498db' }}>{selected.stockQuantity}</div>
+                  <div style={{ fontSize: '12px', color: mutedColor }}>In Stock</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#27ae60' }}>{margin}%</div>
+                  <div style={{ fontSize: '12px', color: mutedColor }}>Profit Margin</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '16px', background: darkMode ? '#3a3d42' : '#f8f9fa', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: pred?.status === 'critical' ? '#e74c3c' : '#f39c12' }}>
+                    {pred?.daysUntilStockout || 'N/A'}{pred?.daysUntilStockout ? 'd' : ''}
+                  </div>
+                  <div style={{ fontSize: '12px', color: mutedColor }}>Days Left</div>
+                </div>
+              </div>
+
+              {/* Product Info */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
+                <div><span style={{ color: mutedColor }}>SKU:</span> <strong>{selected.sku}</strong></div>
+                <div><span style={{ color: mutedColor }}>Category:</span> <strong>{selected.category}</strong></div>
+                <div><span style={{ color: mutedColor }}>Cost Price:</span> <strong>₹{selected.costPrice.toLocaleString('en-IN')}</strong></div>
+                <div><span style={{ color: mutedColor }}>Selling Price:</span> <strong>₹{selected.sellingPrice.toLocaleString('en-IN')}</strong></div>
+                <div><span style={{ color: mutedColor }}>Min Stock:</span> <strong>{selected.minStockLevel}</strong></div>
+                <div><span style={{ color: mutedColor }}>Profit/Unit:</span> <strong style={{ color: '#27ae60' }}>₹{profit.toLocaleString('en-IN')}</strong></div>
+                <div><span style={{ color: mutedColor }}>Stock Value:</span> <strong>₹{(selected.stockQuantity * selected.costPrice).toLocaleString('en-IN')}</strong></div>
+                <div><span style={{ color: mutedColor }}>Avg Daily Sales:</span> <strong>{pred?.avgDailySales || 0}/day</strong></div>
+              </div>
+
+              {/* Quick Actions */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e9e8e4' }}>
+                <button className="btn btn-primary btn-sm" onClick={() => { setShowDetails(false); openUpdateModal(selected); }}>📝 Update Stock</button>
+                <button className="btn btn-light btn-sm" onClick={() => { setShowDetails(false); openSaleModal(selected); }}>🛒 Record Sale</button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );
