@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getTrends, getDailyTrends, getFinancialInsights, getDeadStock } = require("../controllers/analytics.controller");
+const { getTrends, getDailyTrends, getFinancialInsights, getDeadStock, getStockoutPredictions } = require("../controllers/analytics.controller");
 
 // GET /api/analytics/trends - Weekly trends per product
 router.get("/trends", getTrends);
@@ -13,5 +13,8 @@ router.get("/financial", getFinancialInsights);
 
 // GET /api/analytics/dead-stock - Dead stock report
 router.get("/dead-stock", getDeadStock);
+
+// GET /api/analytics/stockout - Stockout predictions
+router.get("/stockout", getStockoutPredictions);
 
 module.exports = router;

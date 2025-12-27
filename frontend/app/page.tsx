@@ -8,6 +8,7 @@ import {
   fetchDailyTrends,
   fetchFinancialInsights,
   fetchDeadStock,
+  fetchStockoutPredictions,
   addProduct,
   updateStock,
   deleteProduct,
@@ -16,7 +17,9 @@ import {
   TrendData,
   DailyTrend,
   FinancialInsights,
-  DeadStockReport
+  DeadStockReport,
+  StockoutData,
+  StockoutPrediction
 } from '@/lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -69,6 +72,7 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
   const [financial, setFinancial] = useState<FinancialInsights | null>(null);
+  const [stockout, setStockout] = useState<StockoutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,8 +104,15 @@ export default function Dashboard() {
   async function load() {
     try {
       setLoading(true);
-      const [p, r, t, d, f] = await Promise.all([fetchProducts(), fetchRefillDecisions(), fetchTrends(), fetchDailyTrends(), fetchFinancialInsights()]);
-      setProducts(p); setRefillDecisions(r); setTrends(t); setDailyTrends(d); setFinancial(f); setError(null);
+      const [p, r, t, d, f, s] = await Promise.all([
+        fetchProducts(),
+        fetchRefillDecisions(),
+        fetchTrends(),
+        fetchDailyTrends(),
+        fetchFinancialInsights(),
+        fetchStockoutPredictions()
+      ]);
+      setProducts(p); setRefillDecisions(r); setTrends(t); setDailyTrends(d); setFinancial(f); setStockout(s); setError(null);
     } catch { setError('Unable to connect to server'); }
     finally { setLoading(false); }
   }
@@ -568,6 +579,7 @@ export default function Dashboard() {
                 <th style={{ color: mutedColor }}>Product</th>
                 <th style={{ color: mutedColor }}>Category</th>
                 <th style={{ color: mutedColor }}>Stock</th>
+                <th style={{ color: mutedColor }}>Days Left</th>
                 <th style={{ color: mutedColor }}>Decision</th>
                 <th style={{ color: mutedColor }}>Actions</th>
               </tr>
@@ -587,6 +599,40 @@ export default function Dashboard() {
                     <td>
                       <div className="stock-bar"><div className={`stock-fill ${level}`} style={{ width: `${pct}%` }}></div></div>
                       <span style={{ color: mutedColor, fontSize: '12px' }}>{p?.stockQuantity}/{p?.minStockLevel}</span>
+                    </td>
+                    <td>
+                      {(() => {
+                        const pred = stockout?.predictions.find(s => s._id === item.productId);
+                        if (!pred) return <span style={{ color: mutedColor }}>-</span>;
+                        const colors: Record<string, string> = {
+                          critical: '#e74c3c',
+                          warning: '#f39c12',
+                          attention: '#f1c40f',
+                          safe: '#27ae60',
+                          out: '#c0392b',
+                          'no-sales': '#95a5a6'
+                        };
+                        const labels: Record<string, string> = {
+                          critical: `${pred.daysUntilStockout}d ⚠️`,
+                          warning: `${pred.daysUntilStockout}d`,
+                          attention: `${pred.daysUntilStockout}d`,
+                          safe: `${pred.daysUntilStockout}d`,
+                          out: 'Out!',
+                          'no-sales': 'N/A'
+                        };
+                        return (
+                          <span style={{
+                            background: colors[pred.status] + '20',
+                            color: colors[pred.status],
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 600
+                          }}>
+                            {labels[pred.status]}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className={`action-badge ${item.decision.decision === 'REFILL_NOW' ? 'red' : item.decision.decision === 'HOLD' ? 'green' : 'yellow'}`}>

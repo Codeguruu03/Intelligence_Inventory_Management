@@ -169,3 +169,33 @@ export async function fetchDeadStock(days: number = 30): Promise<DeadStockReport
     if (!res.ok) throw new Error('Failed to fetch dead stock report');
     return res.json();
 }
+
+// Stockout predictions
+export interface StockoutPrediction {
+    _id: string;
+    name: string;
+    sku: string;
+    category: string;
+    stockQuantity: number;
+    avgDailySales: number;
+    daysUntilStockout: number | null;
+    status: 'critical' | 'warning' | 'attention' | 'safe' | 'out' | 'no-sales';
+}
+
+export interface StockoutData {
+    summary: {
+        critical: number;
+        warning: number;
+        attention: number;
+        outOfStock: number;
+    };
+    predictions: StockoutPrediction[];
+}
+
+export async function fetchStockoutPredictions(): Promise<StockoutData> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/stockout`, {
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch stockout predictions');
+    return res.json();
+}
