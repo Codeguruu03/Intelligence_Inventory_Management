@@ -25,6 +25,11 @@ const saleSchema = new mongoose.Schema({
 async function pushSales() {
     console.log('🚀 Starting to push sales data to production MongoDB...\n');
 
+    // Show which URI we're using (hide password for security)
+    const uriMasked = PRODUCTION_MONGO_URI.replace(/:([^:@]+)@/, ':****@');
+    console.log('📍 Connecting to:', uriMasked);
+    console.log('');
+
     try {
         // Step 1: Connect to MongoDB
         console.log('🔌 Connecting to MongoDB...');
@@ -54,7 +59,8 @@ async function pushSales() {
             const numSales = Math.floor(Math.random() * 11) + 5;
 
             for (let i = 0; i < numSales; i++) {
-                const daysAgo = Math.floor(Math.random() * 14);
+                // Generate dates only in last 6 days (to stay within 7-day API window)
+                const daysAgo = Math.floor(Math.random() * 7);
                 const salesDate = new Date(now);
                 salesDate.setDate(salesDate.getDate() - daysAgo);
 
