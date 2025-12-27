@@ -27,13 +27,13 @@ Inventory Intelligence is a modern inventory management system designed for **In
 ### Core Functionality
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Search & Filter** | Search by name, filter by category/decision |
-| ➕ **Add Product** | Add new inventory items |
-| 📝 **Update Stock** | Modify stock quantities |
-| 🗑️ **Delete Product** | Remove items from inventory |
-| 🛒 **Record Sale** | Log sales to update stock |
-| 📥 **Export CSV** | Download inventory report |
-| 🌙 **Dark Mode** | Toggle light/dark themes |
+| � **Sortable Table** | Click any header to sort inventory by Name, Stock, Days Left, etc. |
+| 📄 **Pagination** | 15 products per page with navigation controls |
+| � **Search & Filter** | Real-time search by name/SKU and category/decision filters |
+| ➕ **Add Product** | Add new inventory items with full price and stock details |
+| 🛒 **Record Sale** | Log sales to automatically update stock levels |
+| 📥 **Export CSV** | Download professional inventory reports for Excel |
+| 🖨️ **Print Report** | Professional printable layout with summary stats and inventory list |
 
 ### Advanced Analytics
 | Feature | Description |
@@ -48,9 +48,11 @@ Inventory Intelligence is a modern inventory management system designed for **In
 ### Alerts & Insights
 | Feature | Description |
 |---------|-------------|
-| ⚠️ **Low Stock Alert** | Red banner when items need refill |
-| 📦 **Reorder Suggestions** | AI-calculated order quantities (14-day supply) |
-| 🔴 **Days Left Badges** | Color-coded stockout urgency indicators |
+| 🔴 **Low Stock Banner** | Persistent top alert when critical refills are needed |
+| 📦 **Reorder Engine** | Suggestions for exact order quantities based on 14-day demand |
+| 🏷️ **Filter Chips** | Visual chips for active filters with one-click clear (×) |
+| ℹ️ **Info Tooltips** | Circular info icons explaining every metric on hover |
+| 🌙 **Dark Mode** | Full theme support for dashboards and all modal forms |
 
 ---
 
@@ -66,8 +68,8 @@ Inventory Intelligence is a modern inventory management system designed for **In
 ### Frontend
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
-- **Styling**: TailwindCSS + Custom CSS
-- **Charts**: Pure CSS (zero dependencies)
+- **Styling**: Vanilla CSS (Premium design system with glassmorphism and animations)
+- **Charts**: Zero-dependency CSS Charts (Custom implementation)
 - **Hosting**: Vercel
 
 ---
@@ -87,7 +89,8 @@ inventory-intelligence/
 │   │   │   ├── trend.service.js
 │   │   │   ├── financial.service.js
 │   │   │   ├── deadstock.service.js
-│   │   │   └── stockout.service.js
+│   │   │   ├── stockout.service.js
+│   │   │   └── damage.service.js
 │   │   └── scripts/         # Seed data (65 products)
 │   └── package.json
 │
@@ -158,6 +161,13 @@ Navigate to **http://localhost:3000**
 | `GET` | `/api/analytics/financial` | Get profit margins & category breakdown |
 | `GET` | `/api/analytics/dead-stock?days=30` | Get products with no sales |
 | `GET` | `/api/analytics/stockout` | Get days-until-stockout predictions |
+
+### Damaged Goods
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/analytics/damaged` | Get damaged inventory report |
+| `POST` | `/api/analytics/mark-damaged` | Mark units as damaged with reason |
+| `DELETE` | `/api/analytics/write-off-damaged/:id` | Write off/clear damaged stock |
 
 ### Admin
 | Method | Endpoint | Description |

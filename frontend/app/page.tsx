@@ -9,6 +9,9 @@ import {
   fetchFinancialInsights,
   fetchDeadStock,
   fetchStockoutPredictions,
+  fetchDamagedReport,
+  markAsDamaged,
+  writeOffDamaged,
   addProduct,
   updateStock,
   deleteProduct,
@@ -19,7 +22,8 @@ import {
   FinancialInsights,
   DeadStockReport,
   StockoutData,
-  StockoutPrediction
+  StockoutPrediction,
+  DamagedReport
 } from '@/lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -42,19 +46,39 @@ function Modal({ isOpen, onClose, title, children, dark = false }: { isOpen: boo
 }
 
 function Input({ label, dark = false, ...props }: { label: string; dark?: boolean } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    border: `1px solid ${dark ? '#555' : '#e9e8e4'}`,
+    borderRadius: '8px',
+    fontSize: '13px',
+    backgroundColor: dark ? '#3a3d42' : '#ffffff',
+    color: dark ? '#ffffff' : '#1a1a1a',
+    outline: 'none'
+  };
   return (
     <div style={{ marginBottom: '14px' }}>
-      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#999' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
-      <input {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid', borderColor: dark ? '#444' : '#e9e8e4', borderRadius: '8px', fontSize: '13px', background: dark ? '#3a3d42' : 'white', color: dark ? '#e9e9e9' : '#1a1a1a' }} />
+      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#aaa' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
+      <input {...props} style={inputStyle} />
     </div>
   );
 }
 
 function Select({ label, options, dark = false, ...props }: { label: string; options: { value: string; label: string }[]; dark?: boolean } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    border: `1px solid ${dark ? '#555' : '#e9e8e4'}`,
+    borderRadius: '8px',
+    fontSize: '13px',
+    backgroundColor: dark ? '#3a3d42' : '#ffffff',
+    color: dark ? '#ffffff' : '#1a1a1a',
+    outline: 'none'
+  };
   return (
     <div style={{ marginBottom: '14px' }}>
-      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#999' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
-      <select {...props} style={{ width: '100%', padding: '10px 12px', border: '1px solid', borderColor: dark ? '#444' : '#e9e8e4', borderRadius: '8px', fontSize: '13px', background: dark ? '#3a3d42' : 'white', color: dark ? '#e9e9e9' : '#1a1a1a' }}>
+      <label style={{ display: 'block', fontSize: '12px', color: dark ? '#aaa' : '#666', marginBottom: '5px', fontWeight: 500 }}>{label}</label>
+      <select {...props} style={selectStyle}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -119,8 +143,11 @@ export default function Dashboard() {
   const [showSale, setShowSale] = useState(false);
   const [showReorder, setShowReorder] = useState(false);
   const [showDeadStock, setShowDeadStock] = useState(false);
+  const [showDamaged, setShowDamaged] = useState(false);
+  const [showMarkDamaged, setShowMarkDamaged] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [deadStockData, setDeadStockData] = useState<DeadStockReport | null>(null);
+  const [damagedData, setDamagedData] = useState<DamagedReport | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -128,6 +155,7 @@ export default function Dashboard() {
   const [form, setForm] = useState({ name: '', sku: '', category: '', stockQuantity: 0, costPrice: 0, sellingPrice: 0, minStockLevel: 10 });
   const [newQty, setNewQty] = useState(0);
   const [saleQty, setSaleQty] = useState(1);
+  const [damageForm, setDamageForm] = useState({ quantity: 1, reason: 'Defective' });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DATA LOADING
@@ -295,6 +323,42 @@ export default function Dashboard() {
     }
   }
 
+  async function handleDamaged() {
+    try {
+      const data = await fetchDamagedReport();
+      setDamagedData(data);
+      setShowDamaged(true);
+    } catch {
+      alert('Failed to fetch damaged inventory report');
+    }
+  }
+
+  async function handleMarkAsDamaged(e: React.FormEvent) {
+    e.preventDefault(); if (!selected) return; setFormLoading(true);
+    try {
+      await markAsDamaged(selected._id, damageForm.quantity, damageForm.reason);
+      setShowMarkDamaged(false);
+      setDamageForm({ quantity: 1, reason: 'Defective' });
+      await load();
+    } catch (err: any) {
+      alert(err.message || 'Failed to mark as damaged');
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  async function handleWriteOff(productId: string) {
+    if (!confirm('Write off this damaged inventory? It will be removed from the system.')) return;
+    try {
+      await writeOffDamaged(productId);
+      const data = await fetchDamagedReport();
+      setDamagedData(data);
+      await load();
+    } catch {
+      alert('Failed to write off damaged inventory');
+    }
+  }
+
   // Export to CSV
   function exportCSV() {
     const headers = ['Name', 'SKU', 'Category', 'Stock', 'Min Stock', 'Cost Price', 'Selling Price', 'Decision'];
@@ -429,6 +493,7 @@ export default function Dashboard() {
             <button className="btn btn-light" onClick={exportCSV} title="Export CSV">📥 Export</button>
             <button className="btn btn-light" onClick={printReport} title="Print Report">🖨️ Print</button>
             <button className="btn btn-light" onClick={handleDeadStock} title="Dead Stock Report">📦 Dead Stock</button>
+            <button className="btn btn-light" onClick={handleDamaged} title="Damaged Inventory Report">⚠️ Damaged</button>
             <button className="btn btn-dark" onClick={() => setShowAdd(true)}>+ Add Product</button>
             <button className="btn btn-light" onClick={load}>↻ Refresh</button>
           </div>
@@ -1052,6 +1117,90 @@ export default function Dashboard() {
         )}
       </Modal>
 
+      {/* Damaged Inventory Report */}
+      <Modal isOpen={showDamaged} onClose={() => setShowDamaged(false)} title="⚠️ Damaged Inventory Report" dark={darkMode}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ background: darkMode ? '#3a3d42' : '#f8f9fa', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', color: mutedColor }}>Total Damaged Items</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#e74c3c' }}>{damagedData?.totalDamagedUnits || 0}</div>
+          </div>
+          <div style={{ background: darkMode ? '#3a3d42' : '#f8f9fa', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', color: mutedColor }}>Total Loss (Cost)</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#e74c3c' }}>₹{damagedData?.totalDamagedValue.toLocaleString('en-IN') || 0}</div>
+          </div>
+        </div>
+
+        {damagedData?.items.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#27ae60', padding: '20px' }}>✓ No damaged items reported</p>
+        ) : (
+          <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+            {damagedData?.items.map(item => (
+              <div key={item._id} style={{
+                background: darkMode ? '#32353a' : '#fff',
+                border: darkMode ? '1px solid #444' : '1px solid #eee',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '10px',
+                borderLeft: '4px solid #e74c3c'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ color: textColor }}>{item.name}</strong>
+                  <button onClick={() => handleWriteOff(item._id)} style={{ fontSize: '10px', color: '#e74c3c', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}>Write-off</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '12px' }}>
+                  <div><span style={{ color: mutedColor }}>Damaged:</span> <strong>{item.damagedQuantity}</strong></div>
+                  <div><span style={{ color: mutedColor }}>Loss:</span> <strong style={{ color: '#e74c3c' }}>₹{(item.damagedQuantity * item.costPrice).toLocaleString('en-IN')}</strong></div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <span style={{ color: mutedColor }}>Last Reason:</span> <span style={{ fontStyle: 'italic' }}>{item.lastReason}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* Mark as Damaged Form */}
+      <Modal isOpen={showMarkDamaged} onClose={() => setShowMarkDamaged(false)} title="⚠️ Mark Items as Damaged" dark={darkMode}>
+        <form onSubmit={handleMarkAsDamaged}>
+          <p style={{ color: mutedColor, marginBottom: '14px' }}>Product: <strong style={{ color: textColor }}>{selected?.name}</strong></p>
+          <p style={{ color: mutedColor, marginBottom: '14px', fontSize: '12px' }}>Current Stock: {selected?.stockQuantity}</p>
+
+          <Input
+            label="Quantity Damaged"
+            type="number"
+            value={damageForm.quantity}
+            onChange={(e) => setDamageForm({ ...damageForm, quantity: +e.target.value })}
+            min={1}
+            max={selected?.stockQuantity}
+            required
+            dark={darkMode}
+          />
+
+          <Select
+            label="Reason for Damage"
+            value={damageForm.reason}
+            onChange={(e) => setDamageForm({ ...damageForm, reason: e.target.value })}
+            options={[
+              { value: 'Defective', label: 'Manufacturing Defect' },
+              { value: 'Broken', label: 'Broken during handling' },
+              { value: 'Expired', label: 'Expired' },
+              { value: 'Wet/Moist', label: 'Water Damage' },
+              { value: 'Other', label: 'Other/Unknown' }
+            ]}
+            dark={darkMode}
+          />
+
+          <div style={{ marginTop: '20px', padding: '12px', background: '#e74c3c15', borderRadius: '8px', color: '#e74c3c', fontSize: '12px' }}>
+            ⚠️ These items will be removed from saleable stock and moved to damaged inventory.
+          </div>
+
+          <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: '20px', background: '#e74c3c' }} disabled={formLoading}>
+            {formLoading ? 'Recording...' : 'Confirm Damage'}
+          </button>
+        </form>
+      </Modal>
+
       {/* Product Details */}
       <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`📦 ${selected?.name || 'Product Details'}`} dark={darkMode}>
         {selected && (() => {
@@ -1094,6 +1243,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e9e8e4' }}>
                 <button className="btn btn-primary btn-sm" onClick={() => { setShowDetails(false); openUpdateModal(selected); }}>📝 Update Stock</button>
                 <button className="btn btn-light btn-sm" onClick={() => { setShowDetails(false); openSaleModal(selected); }}>🛒 Record Sale</button>
+                <button className="btn btn-light btn-sm" style={{ color: '#e74c3c' }} onClick={() => { setShowDetails(false); setShowMarkDamaged(true); }}>⚠️ Mark Damaged</button>
               </div>
             </div>
           );

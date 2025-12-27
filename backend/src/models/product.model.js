@@ -8,7 +8,13 @@ const productSchema = new mongoose.Schema(
     stockQuantity: Number,
     costPrice: Number,
     sellingPrice: Number,
-    minStockLevel: Number
+    minStockLevel: Number,
+    damagedQuantity: { type: Number, default: 0 },
+    damageHistory: [{
+      quantity: Number,
+      reason: String,
+      date: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );

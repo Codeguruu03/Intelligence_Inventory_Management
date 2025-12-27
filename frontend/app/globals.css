@@ -652,3 +652,9 @@ body {
 .legend-dot.yellow {
   background: var(--yellow);
 }
+
+/* Input placeholder styling */
+input::placeholder {
+  color: #999;
+  opacity: 0.7;
+}

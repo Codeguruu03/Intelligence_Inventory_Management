@@ -199,3 +199,53 @@ export async function fetchStockoutPredictions(): Promise<StockoutData> {
     if (!res.ok) throw new Error('Failed to fetch stockout predictions');
     return res.json();
 }
+
+// Damaged Inventory
+export interface DamagedItem {
+    _id: string;
+    name: string;
+    sku: string;
+    category: string;
+    damagedQuantity: number;
+    damagedValue: number;
+    costPrice: number;
+    lastReason: string;
+    lastDate: string | null;
+}
+
+export interface DamagedReport {
+    totalDamagedProducts: number;
+    totalDamagedUnits: number;
+    totalDamagedValue: number;
+    reasonBreakdown: Record<string, { count: number; value: number }>;
+    items: DamagedItem[];
+}
+
+export async function fetchDamagedReport(): Promise<DamagedReport> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/damaged`, {
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch damaged report');
+    return res.json();
+}
+
+export async function markAsDamaged(productId: string, quantity: number, reason: string): Promise<Product> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/mark-damaged`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity, reason }),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to mark as damaged');
+    }
+    return res.json();
+}
+
+export async function writeOffDamaged(productId: string): Promise<{ productId: string; writtenOff: number }> {
+    const res = await fetch(`${API_BASE_URL}/api/analytics/write-off-damaged/${productId}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to write off damaged inventory');
+    return res.json();
+}
